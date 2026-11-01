@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="随记">
+  <rect width="512" height="512" rx="116" fill="#f4f1ea" />
+  <g fill="none" stroke="#211e1a" stroke-width="21" stroke-linecap="round">
+    <path d="M152 216q26-32 52 0" />
+    <path d="M308 216q26-32 52 0" />
+    <path d="M170 310c42 62 130 62 172 0" />
+  </g>
+</svg>

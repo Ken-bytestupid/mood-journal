@@ -1,0 +1,13 @@
+# 静态资源带内容哈希，可长期强缓存
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# 入口文件和 Service Worker 不能缓存，否则发版后用户拿不到新版
+/index.html
+  Cache-Control: no-cache
+
+/sw.js
+  Cache-Control: no-cache
+
+/manifest.webmanifest
+  Cache-Control: no-cache

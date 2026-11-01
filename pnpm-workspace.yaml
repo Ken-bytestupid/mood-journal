@@ -1,0 +1,7 @@
+# pnpm 11 起，包管理设置放在这里（package.json 里的 pnpm 字段不再读取）。
+# esbuild 需要执行安装脚本下载对应平台的二进制，Vite 才能启动。
+onlyBuiltDependencies:
+  - esbuild
+# 跳过每次 pnpm run 之前的隐式 install 检查：这个项目没有 workspace 依赖需要同步，
+# 而该检查会因为 esbuild 的构建脚本审批问题返回非零退出码，干扰 npm scripts。
+verifyDepsBeforeRun: false
