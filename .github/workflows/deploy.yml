@@ -30,8 +30,10 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      # --ignore-scripts：esbuild 的 postinstall 只做二进制校验，跳过不影响构建；
+      # 不加的话 pnpm 11 会以 ERR_PNPM_IGNORED_BUILDS 返回非零退出码，CI 直接失败。
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       # 项目站点部署在 /仓库名/ 下；如果仓库叫 xxx.github.io 则是根路径
       - name: Compute base path
