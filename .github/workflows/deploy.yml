@@ -2,7 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # 本地仓库的默认分支是 master，同时兼容以后改成 main 的情况
+    branches: [master, main]
   workflow_dispatch:
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
       - name: Compute base path
         id: base
         run: |
-          name="${{ github.event.repository.name }}"
+          name="${GITHUB_REPOSITORY#*/}"
           if [[ "$name" == *.github.io ]]; then
             echo "value=/" >> "$GITHUB_OUTPUT"
           else
