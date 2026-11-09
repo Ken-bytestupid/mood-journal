@@ -27,8 +27,10 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   const [photoIndex, setPhotoIndex] = useState<number | null>(null)
   const startX = useRef(0)
   const startY = useRef(0)
+  const lastX = useRef(0)
   const dragging = useRef(false)
   const onCard = useRef(false)
+  const onInteractive = useRef(false)
   const busy = useRef(false)
 
   const entry = entries[index]
@@ -70,13 +72,18 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
     if (busy.current) return
     dragging.current = false
     startX.current = event.clientX
+    lastX.current = event.clientX
     startY.current = event.clientY
-    onCard.current = !!(event.target as Element).closest('.reader-card')
+    const target = event.target as Element
+    onCard.current = !!target.closest('.reader-card')
+    // 按钮、链接上的点击交给它们自己处理（删除、看照片），不当作翻页/关闭
+    onInteractive.current = !!target.closest('button, a, input, textarea')
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (busy.current) return
+    lastX.current = event.clientX
     const dx = event.clientX - startX.current
     const dy = event.clientY - startY.current
 
@@ -91,13 +98,24 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   }
 
   const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    // 浏览器可能会把触摸流改成 pointercancel，此时坐标是 0,0，
+    // 直接用它会算出巨大的负位移（表现为"往哪划都往后翻"），所以用最后一次移动的坐标。
+    const cancelled = event.type === 'pointercancel'
+    const endX = cancelled ? lastX.current : event.clientX
+
     if (!dragging.current) {
-      // 没滑动：点空白处关闭（点在卡片里不关）
-      if (!onCard.current) onClose()
+      if (cancelled || onInteractive.current) return
+
+      // 电子阅读器式分区点击：左三分之一上一页，右三分之一下一页，中间点空白关闭
+      const third = window.innerWidth / 3
+      if (endX < third) step(-1)
+      else if (endX > third * 2) step(1)
+      else if (!onCard.current) onClose()
       return
     }
+
     dragging.current = false
-    const dx = event.clientX - startX.current
+    const dx = endX - startX.current
     const threshold = 70
     if (dx <= -threshold) step(1)
     else if (dx >= threshold) step(-1)

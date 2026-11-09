@@ -1126,7 +1126,8 @@ button {
   justify-content: center;
   gap: 12px;
   padding: 20px;
-  touch-action: pan-y;
+  /* 不让浏览器抢走手势，否则触摸流会被 pointercancel 打断 */
+  touch-action: none;
 }
 
 .reader-card {
@@ -1137,6 +1138,8 @@ button {
   background: var(--surface);
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+  /* 卡片内部仍可纵向滚动，横向手势留给翻页 */
+  touch-action: pan-y;
   animation: reader-in 0.22s var(--ease);
 }
 
