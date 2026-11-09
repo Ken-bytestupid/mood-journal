@@ -239,6 +239,16 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
             </span>
           </div>
           <div className="storage-row">
+            <span>照片格式</span>
+            <span>
+              {status === null
+                ? '读取中…'
+                : status.photoType === 'image/webp'
+                  ? 'WebP（更省空间）'
+                  : 'JPEG（兼容模式）'}
+            </span>
+          </div>
+          <div className="storage-row">
             <span>上次导出</span>
             <span>{status?.lastExportAt ? timeAgo(status.lastExportAt) : '从未'}</span>
           </div>

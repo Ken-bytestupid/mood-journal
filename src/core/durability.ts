@@ -9,6 +9,7 @@
  *
  * 镜像只存文字，不存图片（localStorage 只有几 MB）；恢复时会标明「照片需要重新添加」。
  */
+import { preferredImageType, type EncodeType } from './image'
 import type { Entry, Polarity } from './types'
 
 const MIRROR_KEY = 'mood-journal:mirror:v1'
@@ -40,6 +41,8 @@ export interface StorageStatus {
   mirrorCount: number
   mirrorSavedAt: number | null
   lastExportAt: number | null
+  /** 本机照片会用哪种格式编码（Safari 不支持 WebP 编码，会走 JPEG）。 */
+  photoType: EncodeType
 }
 
 /** 申请持久化存储。返回 null 表示当前浏览器不支持这个 API。 */
@@ -77,6 +80,7 @@ export async function readStorageStatus(backend: StorageBackend): Promise<Storag
     mirrorCount: mirror?.records.length ?? 0,
     mirrorSavedAt: mirror?.savedAt ?? null,
     lastExportAt: readMeta().lastExportAt,
+    photoType: preferredImageType(),
   }
 }
 
