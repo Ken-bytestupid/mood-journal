@@ -488,6 +488,14 @@ button {
   letter-spacing: 0.01em;
 }
 
+/* 斜体衬线的 & 不好认，单独换回界面默认字体（直立） */
+.page-brand .brand-amp {
+  font-family: system-ui, -apple-system, 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', sans-serif;
+  font-style: normal;
+  font-size: 13px;
+  padding: 0 1px;
+}
+
 .sheet .storage-card {
   margin-bottom: 10px;
 }
