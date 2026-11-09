@@ -484,6 +484,20 @@ button {
   font-size: 12.5px;
 }
 
+/* 副标题位置固定的一句话，不再重复统计数字 */
+.page-brand {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.sheet .storage-card {
+  margin-bottom: 10px;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
