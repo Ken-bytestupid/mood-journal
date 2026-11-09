@@ -13,6 +13,19 @@ export interface Emotion {
   polarity: Exclude<Polarity, 'plain'>
 }
 
+/**
+ * 一张照片存两档，都用 Blob（不是 base64，省 33% 体积，也不占 JS 字符串内存）：
+ *   - thumb：列表缩略图，长边 480，十几 KB
+ *   - view ：点开看的图，长边 1440，约 100KB
+ */
+export interface Photo {
+  thumb: Blob
+  view: Blob
+  /** 原图尺寸，仅作记录（0 表示旧数据没存）。 */
+  width: number
+  height: number
+}
+
 /** 一条记录。 */
 export interface Entry {
   id: string
@@ -22,8 +35,8 @@ export interface Entry {
   polarity: Polarity
   /** 具体情绪标记，可为空。 */
   emotionId: string | null
-  /** 压缩后的 dataURL；本机存储，不上传。 */
-  photos: string[]
+  /** 压缩后的照片；本机存储，不上传。 */
+  photos: Photo[]
   createdAt: number
   updatedAt: number
   /**
@@ -41,5 +54,5 @@ export interface EntryInput {
   text: string
   polarity: Polarity
   emotionId: string | null
-  photos: string[]
+  photos: Photo[]
 }

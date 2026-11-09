@@ -8,8 +8,9 @@ import {
 } from '../core/durability'
 import { clockText, dayKey, dayTitle, fullText, groupByDay, startOfDay, streakDays } from '../core/time'
 import type { Entry, Polarity } from '../core/types'
-import { toBackupJSON } from '../modules/entries/store'
+import { buildBackupJSON } from '../modules/entries/store'
 import { POLARITY_COLOR, POLARITY_LABEL, emotionById } from '../modules/mood/emotions'
+import { BlobImage } from '../ui/BlobImage'
 import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
 import { useToast } from '../ui/Toast'
@@ -86,7 +87,7 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
       return
     }
     const name = `随记-${dayKey(Date.now())}.json`
-    const file = new File([toBackupJSON(entries)], name, { type: 'application/json' })
+    const file = new File([await buildBackupJSON(entries)], name, { type: 'application/json' })
     const shareApi = navigator as Navigator & {
       canShare?: (data: ShareData) => boolean
       share?: (data: ShareData) => Promise<void>
@@ -294,8 +295,8 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
                     {entry.text ? <span className="entry-text">{entry.text}</span> : null}
                     {entry.photos.length > 0 ? (
                       <span className="entry-photos">
-                        {entry.photos.slice(0, 3).map((src, index) => (
-                          <img key={index} src={src} alt={`照片 ${index + 1}`} />
+                        {entry.photos.slice(0, 3).map((photo, index) => (
+                          <BlobImage key={index} blob={photo.thumb} alt={`照片 ${index + 1}`} />
                         ))}
                       </span>
                     ) : null}
@@ -362,8 +363,8 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
             {selected.text ? <p className="detail-text">{selected.text}</p> : null}
             {selected.photos.length > 0 ? (
               <div className="detail-photos">
-                {selected.photos.map((src, index) => (
-                  <img key={index} src={src} alt={`照片 ${index + 1}`} />
+                {selected.photos.map((photo, index) => (
+                  <BlobImage key={index} blob={photo.view} alt={`照片 ${index + 1}`} />
                 ))}
               </div>
             ) : null}

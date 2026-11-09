@@ -4,9 +4,11 @@
  */
 import { readAll, removeAll, removeOne, writeMany, writeOne } from '../../core/db'
 import { readMirror } from '../../core/durability'
-import type { Entry, EntryInput, Polarity } from '../../core/types'
+import { blobToDataURL, dataURLToBlob } from '../../core/image'
+import type { Entry, EntryInput, Photo, Polarity } from '../../core/types'
 
-const BACKUP_VERSION = 2
+/** v3：照片从 base64 字符串改成双档 Blob（缩略图 + 查看图）。 */
+const BACKUP_VERSION = 3
 
 /** 旧版本（v1）用 moodId 存具体情绪，读出来时升级成 polarity + emotionId。 */
 const LEGACY_POLARITY: Record<string, Exclude<Polarity, 'plain'>> = {
@@ -29,18 +31,71 @@ function isPolarity(value: unknown): value is Polarity {
   return value === 'positive' || value === 'negative' || value === 'plain'
 }
 
+/**
+ * 照片兼容三种历史形态：
+ *   · v3：{ thumb: Blob, view: Blob, width, height }
+ *   · v2：dataURL 字符串（base64）
+ *   · 更早：dataURL 字符串，混在同一个数组里
+ * 字符串会被还原成 Blob；缩略图缺失时先用查看图顶上（显示大一点，但不丢图）。
+ */
+async function normalizePhotos(value: unknown): Promise<Photo[]> {
+  if (!Array.isArray(value)) return []
+  const photos: Photo[] = []
+
+  for (const item of value) {
+    if (typeof item === 'string') {
+      if (!item.startsWith('data:')) continue
+      const blob = dataURLToBlob(item)
+      photos.push({ thumb: blob, view: blob, width: 0, height: 0 })
+      continue
+    }
+    if (!item || typeof item !== 'object') continue
+
+    const record = item as { thumb?: unknown; view?: unknown; width?: unknown; height?: unknown }
+    const view =
+      record.view instanceof Blob
+        ? record.view
+        : typeof record.view === 'string' && record.view.startsWith('data:')
+          ? dataURLToBlob(record.view)
+          : null
+    if (!view) continue
+
+    const thumb =
+      record.thumb instanceof Blob
+        ? record.thumb
+        : typeof record.thumb === 'string' && record.thumb.startsWith('data:')
+          ? dataURLToBlob(record.thumb)
+          : view
+
+    photos.push({
+      thumb,
+      view,
+      width: typeof record.width === 'number' ? record.width : 0,
+      height: typeof record.height === 'number' ? record.height : 0,
+    })
+  }
+
+  return photos
+}
+
 /** 把库里可能存在的旧结构补齐成当前结构。 */
-function upgrade(raw: Entry): Entry {
+async function upgrade(raw: Entry): Promise<Entry> {
   const record = raw as Entry & { moodId?: unknown }
   const legacy = typeof record.moodId === 'string' ? record.moodId : null
   const emotionId = typeof record.emotionId === 'string' ? record.emotionId : legacy
   const polarity = isPolarity(record.polarity) ? record.polarity : legacy ? (LEGACY_POLARITY[legacy] ?? 'plain') : 'plain'
-  return { ...raw, polarity, emotionId }
+
+  return {
+    ...raw,
+    polarity,
+    emotionId,
+    photos: await normalizePhotos(record.photos),
+  }
 }
 
 export async function listEntries(): Promise<Entry[]> {
   const all = await readAll()
-  return all.map(upgrade)
+  return Promise.all(all.map(upgrade))
 }
 
 export async function createEntry(input: EntryInput, now = Date.now()): Promise<Entry> {
@@ -66,12 +121,23 @@ export async function clearEntries(): Promise<void> {
   await removeAll()
 }
 
-export function toBackupJSON(entries: Entry[]): string {
-  return JSON.stringify(
-    { app: 'mood-journal', version: BACKUP_VERSION, exportedAt: Date.now(), entries },
-    null,
-    2,
-  )
+/**
+ * 备份成 JSON。照片以查看图的 dataURL 写入，保证换设备/换域名也能完整还原
+ * （代价是备份文件里照片会按 base64 膨胀 33%，可以接受）。
+ */
+export async function buildBackupJSON(entries: Entry[]): Promise<string> {
+  const payload = {
+    app: 'mood-journal',
+    version: BACKUP_VERSION,
+    exportedAt: Date.now(),
+    entries: await Promise.all(
+      entries.map(async (entry) => ({
+        ...entry,
+        photos: await Promise.all(entry.photos.map((photo) => blobToDataURL(photo.view))),
+      })),
+    ),
+  }
+  return JSON.stringify(payload, null, 2)
 }
 
 /** 导入：跳过已存在的 id，返回真正新增的条数。 */
@@ -89,7 +155,7 @@ export async function importBackup(text: string, existing: Entry[]): Promise<num
   const known = new Set(existing.map((entry) => entry.id))
   const incoming: Entry[] = []
   for (const raw of list) {
-    const entry = normalize(raw)
+    const entry = await normalize(raw)
     if (!entry || known.has(entry.id)) continue
     known.add(entry.id)
     incoming.push(entry)
@@ -99,15 +165,13 @@ export async function importBackup(text: string, existing: Entry[]): Promise<num
 }
 
 /** 导入时做宽松校验：缺字段的记录直接跳过，不因为一条坏数据整份失败。 */
-function normalize(raw: unknown): Entry | null {
+async function normalize(raw: unknown): Promise<Entry | null> {
   if (typeof raw !== 'object' || raw === null) return null
   const record = raw as Record<string, unknown>
   if (typeof record.id !== 'string' || typeof record.createdAt !== 'number') return null
   const title = typeof record.title === 'string' ? record.title : ''
   const text = typeof record.text === 'string' ? record.text : ''
-  const photos = Array.isArray(record.photos)
-    ? record.photos.filter((photo): photo is string => typeof photo === 'string')
-    : []
+  const photos = await normalizePhotos(record.photos)
   if (!title && !text && photos.length === 0) return null
 
   const legacyMoodId = typeof record.moodId === 'string' ? record.moodId : null

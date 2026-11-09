@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
-import { fileToDataURL } from '../core/image'
+import { compressPhoto } from '../core/image'
 import { clockText, dateText, weekText } from '../core/time'
-import type { Entry, EntryInput, Polarity } from '../core/types'
+import type { Entry, EntryInput, Photo, Polarity } from '../core/types'
 import { EMOTION_GROUPS, POLARITY_OPTIONS, emotionById } from '../modules/mood/emotions'
+import { BlobImage } from '../ui/BlobImage'
 import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
 import { useToast } from '../ui/Toast'
@@ -60,7 +61,8 @@ export function RecordPage({ onSave, hidden }: RecordPageProps) {
   const [text, setText] = useState(draft.text)
   const [polarity, setPolarity] = useState<Polarity>(draft.polarity)
   const [emotionId, setEmotionId] = useState<string | null>(draft.emotionId)
-  const [photos, setPhotos] = useState<string[]>([])
+  const [photos, setPhotos] = useState<Photo[]>([])
+  const [processing, setProcessing] = useState(0)
   const [polarityOpen, setPolarityOpen] = useState(false)
   const [emotionOpen, setEmotionOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -116,18 +118,25 @@ export function RecordPage({ onSave, hidden }: RecordPageProps) {
         toast(`一条记录最多 ${MAX_PHOTOS} 张照片`)
         return
       }
+      const selected = files.slice(0, room)
+      setProcessing((count) => count + selected.length)
       try {
-        const picked = await Promise.all(files.slice(0, room).map((file) => fileToDataURL(file)))
-        setPhotos((prev) => [...prev, ...picked])
+        // 逐张压：并发编码在手机上互相抢 CPU，反而更慢，进度也不好看
+        for (const file of selected) {
+          const photo = await compressPhoto(file)
+          setPhotos((prev) => [...prev, photo])
+        }
       } catch (error) {
         toast(error instanceof Error ? error.message : '图片处理失败')
+      } finally {
+        setProcessing((count) => Math.max(0, count - selected.length))
       }
     },
     [photos.length, toast],
   )
 
   const handleSave = useCallback(async () => {
-    if (saving) return
+    if (saving || processing > 0) return
     if (!text.trim() && !title.trim() && photos.length === 0) {
       toast('写一句话再保存吧')
       return
@@ -148,7 +157,7 @@ export function RecordPage({ onSave, hidden }: RecordPageProps) {
     } finally {
       setSaving(false)
     }
-  }, [emotionId, onSave, photos, polarity, saving, text, title, toast])
+  }, [emotionId, onSave, photos, polarity, processing, saving, text, title, toast])
 
   return (
     <div className="page record" hidden={hidden}>
@@ -196,9 +205,9 @@ export function RecordPage({ onSave, hidden }: RecordPageProps) {
         />
 
         <div className="photo-row">
-          {photos.map((src, index) => (
-            <div className="thumb" key={`${index}-${src.slice(-12)}`}>
-              <img src={src} alt={`照片 ${index + 1}`} />
+          {photos.map((photo, index) => (
+            <div className="thumb" key={`${index}-${photo.width}-${photo.height}`}>
+              <BlobImage blob={photo.thumb} alt={`照片 ${index + 1}`} />
               <button
                 type="button"
                 className="thumb-remove"
@@ -209,6 +218,11 @@ export function RecordPage({ onSave, hidden }: RecordPageProps) {
               </button>
             </div>
           ))}
+          {processing > 0 ? (
+            <div className="thumb thumb-processing" aria-hidden="true">
+              处理中…
+            </div>
+          ) : null}
           {photos.length < MAX_PHOTOS ? (
             <button
               type="button"
@@ -255,9 +269,9 @@ export function RecordPage({ onSave, hidden }: RecordPageProps) {
             className="save-btn"
             data-saved={savedFlash ? 'true' : 'false'}
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || processing > 0}
           >
-            {saving ? '保存中' : savedFlash ? '已保存' : '保存'}
+            {saving ? '保存中' : processing > 0 ? '处理中' : savedFlash ? '已保存' : '保存'}
           </button>
         </div>
       </section>

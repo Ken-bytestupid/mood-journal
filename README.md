@@ -35,7 +35,7 @@ src/
     types.ts            Entry / Mood 数据结构
     db.ts               IndexedDB 存储层，隐私模式自动退回 localStorage
     time.ts             时间展示、按天分组、连续天数
-    image.ts            照片压缩（长边 1600，JPEG 0.82）
+    image.ts            照片压缩：双档 WebP（1440 查看图 + 480 缩略图），JPEG 自动降级
   modules/              按功能垂直切分
     mood/moods.ts       情绪清单：4 积极 + 4 消极
     entries/store.ts    记录的新增/删除/备份/导入
@@ -62,7 +62,9 @@ scripts/
 - **此刻的心情**：标题左边的胶囊按钮，点开是 4 积极 + 4 消极的具体情绪；选中就把那个 emoji
   挂到这条记录上（不写进正文）。挂了具体情绪会自动把「这次的心情」定到它所属的那一组；
   选「只是记录」则会清掉已挂的情绪。
-- **照片**：最多 6 张，自动压到长边 1600px / JPEG 0.82 后存本机。
+- **照片**：最多 6 张。自动压成两档 WebP（长边 1440 的查看图 + 长边 480 的缩略图），
+  存 Blob 而不是 base64；浏览器不支持 WebP 编码时退回 JPEG。压缩期间保存按钮显示「处理中」。
+  一张 3–8MB 的手机原图，落到库里通常 100–130KB（旧方案约 290KB）。
 - **自动草稿**：正文 / 标题 / 心情 / 情绪实时存 localStorage，切页面或浏览器被回收都不会丢。
   照片不进草稿（体积大），这一版切页面会丢。
 - **保存**：保存成功后按钮变绿显示「已保存」，表单清空，光标收起。
@@ -81,7 +83,7 @@ Entry {
   text: string
   polarity: 'positive' | 'negative' | 'plain'   // 这次的心情（粗分类）
   emotionId: string | null                      // 此刻的心情（具体情绪，可空）
-  photos: string[]                              // 压缩后的 dataURL
+  photos: Photo[]        // 双档 WebP Blob：{ thumb, view, width, height }
   createdAt: number
   updatedAt: number
   context?: { weather?: string | null }         // 以后接天气，不用改结构
@@ -112,25 +114,27 @@ Entry {
 ## 已知限制 / 下一步
 
 - 记录不能编辑（只能删除），下一步补编辑。
-- 没有离线缓存（Service Worker），断网打不开；要「装到桌面」需要 https 或本机部署。
 - 没有搜索、筛选、日历视图、提醒。
 - 天气位已留好，未接数据源。
+- 旧记录里的 base64 照片在读取时会被还原成 Blob 正常显示，但**不会被重新压缩**；
+  想回收那部分空间，可以导出备份再导入一次（导入走的是新管线的压缩格式）。
+- 备份 JSON 里的照片仍然是 base64（换设备/换域名要能完整还原），所以备份文件会比库里的数据大。
 - 桌面版可以后续用 Tauri 包同一份前端。
 
 ## 部署到 GitHub Pages
 
-仓库里已经带了 `.github/workflows/deploy.yml`：推到 `main` 就自动构建并发布。
+仓库里已经带了 `.github/workflows/deploy.yml`：推到 `master`（或 `main`）就自动构建并发布。
 
 1. 在 GitHub 上建一个**空仓库**（不要勾选自动生成 README / .gitignore）
 2. 本地推送：
 
 ```bash
-git remote add origin https://github.com/<你的用户名>/suiji.git
-git push -u origin main
+git remote add origin https://github.com/<你的用户名>/mood-journal.git
+git push -u origin master
 ```
 
 3. 仓库 → **Settings → Pages → Build and deployment → Source** 选 **GitHub Actions**
-4. 等 Actions 跑完，地址是 `https://<你的用户名>.github.io/suiji/`
+4. 等 Actions 跑完，地址是 `https://<你的用户名>.github.io/mood-journal/`
 
 要点：
 

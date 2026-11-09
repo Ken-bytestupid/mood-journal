@@ -309,6 +309,29 @@ button {
   background: var(--surface-2);
 }
 
+/* 压缩 WebP 需要几百毫秒，给个看得见的占位 */
+.thumb-processing {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  animation: thumb-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes thumb-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .card-divider {
   border-top: 1px dashed var(--line-strong);
   margin: 0 2px;
