@@ -15,7 +15,7 @@ import type { Entry, Polarity } from './types'
 const MIRROR_KEY = 'mood-journal:mirror:v1'
 const META_KEY = 'mood-journal:meta:v1'
 
-export interface MirrorRecord {
+interface MirrorRecord {
   id: string
   title: string
   text: string
@@ -25,7 +25,7 @@ export interface MirrorRecord {
   photoCount: number
 }
 
-export interface Mirror {
+interface Mirror {
   savedAt: number
   records: MirrorRecord[]
 }
@@ -114,14 +114,6 @@ export function readMirror(): Mirror | null {
     return parsed
   } catch {
     return null
-  }
-}
-
-export function clearMirror(): void {
-  try {
-    localStorage.removeItem(MIRROR_KEY)
-  } catch {
-    /* 忽略 */
   }
 }
 

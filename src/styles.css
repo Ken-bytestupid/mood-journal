@@ -478,12 +478,6 @@ button {
   letter-spacing: 0.01em;
 }
 
-.page-sub {
-  margin: 0 0 14px;
-  color: var(--muted);
-  font-size: 12.5px;
-}
-
 /* 副标题位置固定的一句话，不再重复统计数字 */
 .page-brand {
   margin: 0 0 12px;

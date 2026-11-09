@@ -4,7 +4,7 @@ import type { Emotion, Polarity } from '../../core/types'
  * 具体情绪清单：4 积极 + 4 消极。
  * 它是「此刻的心情」那个 emoji 标记的来源，点一下给记录盖个章，不打断写字。
  */
-export const EMOTIONS: Emotion[] = [
+const EMOTIONS: Emotion[] = [
   { id: 'happy', label: '开心', emoji: '😄', polarity: 'positive' },
   { id: 'satisfied', label: '满足', emoji: '😌', polarity: 'positive' },
   { id: 'calm', label: '平静', emoji: '🙂', polarity: 'positive' },
