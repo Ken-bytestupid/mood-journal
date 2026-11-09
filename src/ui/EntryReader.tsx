@@ -26,7 +26,9 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   const [animate, setAnimate] = useState(true)
   const [photoIndex, setPhotoIndex] = useState<number | null>(null)
   const startX = useRef(0)
+  const startY = useRef(0)
   const dragging = useRef(false)
+  const onCard = useRef(false)
   const busy = useRef(false)
 
   const entry = entries[index]
@@ -65,25 +67,40 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   }, [onClose, step])
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (entries.length < 2 || busy.current) return
-    dragging.current = true
+    if (busy.current) return
+    dragging.current = false
     startX.current = event.clientX
-    setAnimate(false)
-    // 抓住指针，手指滑出卡片范围也能收到后续事件
+    startY.current = event.clientY
+    onCard.current = !!(event.target as Element).closest('.reader-card')
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return
-    setOffset(event.clientX - startX.current)
+    if (busy.current) return
+    const dx = event.clientX - startX.current
+    const dy = event.clientY - startY.current
+
+    if (!dragging.current) {
+      // 先判断方向：横向为主才算翻页，纵向留给卡片自己滚动
+      if (Math.abs(dx) < 8 || Math.abs(dx) <= Math.abs(dy)) return
+      if (entries.length < 2) return
+      dragging.current = true
+      setAnimate(false)
+    }
+    setOffset(dx)
   }
 
-  const endDrag = () => {
-    if (!dragging.current) return
+  const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragging.current) {
+      // 没滑动：点空白处关闭（点在卡片里不关）
+      if (!onCard.current) onClose()
+      return
+    }
     dragging.current = false
+    const dx = event.clientX - startX.current
     const threshold = 70
-    if (offset <= -threshold) step(1)
-    else if (offset >= threshold) step(-1)
+    if (dx <= -threshold) step(1)
+    else if (dx >= threshold) step(-1)
     else {
       setAnimate(true)
       setOffset(0)
@@ -96,8 +113,14 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
 
   return (
     <div className="reader-root" data-photo-open={photoIndex !== null ? 'true' : 'false'}>
-      <button type="button" className="reader-backdrop" aria-label="关闭" onClick={onClose} />
-      <div className="reader-stage">
+      <div className="reader-backdrop" />
+      <div
+        className="reader-stage"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
         <div
           className="reader-card"
           role="dialog"
@@ -107,10 +130,6 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
             transform: `translateX(${offset}px)`,
             transition: animate ? `transform ${FLY_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)` : 'none',
           }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
         >
           <div className="reader-meta">
             <MoodFace
