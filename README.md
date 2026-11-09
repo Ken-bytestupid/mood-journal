@@ -35,7 +35,7 @@ src/
     types.ts            Entry / Mood 数据结构
     db.ts               IndexedDB 存储层，隐私模式自动退回 localStorage
     time.ts             时间展示、按天分组、连续天数
-    image.ts            照片压缩：双档 WebP（1440 查看图 + 480 缩略图），JPEG 自动降级
+    image.ts            照片压缩：480 缩略图 + 原尺寸图（只降画质），JPEG 自动降级
   modules/              按功能垂直切分
     mood/moods.ts       情绪清单：4 积极 + 4 消极
     entries/store.ts    记录的新增/删除/备份/导入
@@ -62,10 +62,12 @@ scripts/
 - **此刻的心情**：标题左边的胶囊按钮，点开是 4 积极 + 4 消极的具体情绪；选中就把那个 emoji
   挂到这条记录上（不写进正文）。挂了具体情绪会自动把「这次的心情」定到它所属的那一组；
   选「只是记录」则会清掉已挂的情绪。
-- **照片**：最多 6 张。自动压成两档（长边 1440 的查看图 + 长边 480 的缩略图），存 Blob 而不是 base64。
+- **照片**：最多 6 张。每张存两档，都是 Blob 而不是 base64：
+  **缩略图**（长边 480，列表和记录详情都显示它）和 **原尺寸图**
+  （保持原始像素，只降画质，起点 q0.62 / JPEG 0.58，超 900KB 继续降画质）。
+  记录详情里点缩略图会全屏打开原尺寸图，可左右滑动看同一条里的其它照片。
   格式按设备能力选：能编码 WebP 就用 WebP，否则退回 JPEG——**Safari 不支持 canvas 编码 WebP，
   所以 iPhone 上会走 JPEG**，所有现代设备都能解开。压缩期间保存按钮显示「处理中」。
-  一张 3–8MB 的手机原图，落到库里通常 100–130KB（旧方案约 290KB）。
   「我的 → 通用 → 数据与存储」里能看到当前设备用的是哪种格式。
 - **自动草稿**：正文 / 标题 / 心情 / 情绪实时存 localStorage，切页面或浏览器被回收都不会丢。
   照片不进草稿（体积大），这一版切页面会丢。
@@ -87,7 +89,7 @@ Entry {
   text: string
   polarity: 'positive' | 'negative' | 'plain'   // 这次的心情（粗分类）
   emotionId: string | null                      // 此刻的心情（具体情绪，可空）
-  photos: Photo[]        // 双档 WebP Blob：{ thumb, view, width, height }
+  photos: Photo[]        // { thumb: Blob, full: Blob, width, height }
   createdAt: number
   updatedAt: number
   context?: { weather?: string | null }         // 以后接天气，不用改结构

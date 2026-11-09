@@ -4,6 +4,7 @@ import { fullText } from '../core/time'
 import { POLARITY_COLOR, POLARITY_LABEL, emotionById } from '../modules/mood/emotions'
 import { BlobImage } from './BlobImage'
 import { MoodFace } from './MoodFace'
+import { PhotoViewer } from './PhotoViewer'
 
 interface EntryReaderProps {
   entries: Entry[]
@@ -23,6 +24,7 @@ const FLY_MS = 190
 export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }: EntryReaderProps) {
   const [offset, setOffset] = useState(0)
   const [animate, setAnimate] = useState(true)
+  const [photoIndex, setPhotoIndex] = useState<number | null>(null)
   const startX = useRef(0)
   const dragging = useRef(false)
   const busy = useRef(false)
@@ -93,7 +95,7 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   const emotion = emotionById(entry.emotionId)
 
   return (
-    <div className="reader-root">
+    <div className="reader-root" data-photo-open={photoIndex !== null ? 'true' : 'false'}>
       <button type="button" className="reader-backdrop" aria-label="关闭" onClick={onClose} />
       <div className="reader-stage">
         <div
@@ -132,8 +134,16 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
           {entry.text ? <p className="reader-text">{entry.text}</p> : null}
           {entry.photos.length > 0 ? (
             <div className="reader-photos">
-              {entry.photos.map((photo, photoIndex) => (
-                <BlobImage key={photoIndex} blob={photo.view} alt={`照片 ${photoIndex + 1}`} />
+              {entry.photos.map((photo, index_) => (
+                <button
+                  key={index_}
+                  type="button"
+                  className="reader-photo"
+                  aria-label={`查看第 ${index_ + 1} 张照片的原尺寸`}
+                  onClick={() => setPhotoIndex(index_)}
+                >
+                  <BlobImage blob={photo.thumb} alt={`照片 ${index_ + 1}`} />
+                </button>
               ))}
             </div>
           ) : null}
@@ -147,6 +157,15 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
           {index + 1} / {entries.length}
         </div>
       </div>
+
+      {photoIndex !== null ? (
+        <PhotoViewer
+          photos={entry.photos}
+          index={photoIndex}
+          onIndexChange={setPhotoIndex}
+          onClose={() => setPhotoIndex(null)}
+        />
+      ) : null}
     </div>
   )
 }

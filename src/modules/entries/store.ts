@@ -38,38 +38,40 @@ function isPolarity(value: unknown): value is Polarity {
  *   · 更早：dataURL 字符串，混在同一个数组里
  * 字符串会被还原成 Blob；缩略图缺失时先用查看图顶上（显示大一点，但不丢图）。
  */
+/**
+ * 照片兼容几种历史形态：
+ *   · 现在：{ thumb: Blob, full: Blob, width, height }
+ *   · v3  ：{ thumb, view }——原来的 1440 查看图，升级后当作 full 用
+ *   · v2 及更早：dataURL 字符串（只有一张，thumb / full 都用它）
+ */
 async function normalizePhotos(value: unknown): Promise<Photo[]> {
   if (!Array.isArray(value)) return []
   const photos: Photo[] = []
 
+  const toBlob = (input: unknown): Blob | null => {
+    if (input instanceof Blob) return input
+    if (typeof input === 'string' && input.startsWith('data:')) return dataURLToBlob(input)
+    return null
+  }
+
   for (const item of value) {
     if (typeof item === 'string') {
-      if (!item.startsWith('data:')) continue
-      const blob = dataURLToBlob(item)
-      photos.push({ thumb: blob, view: blob, width: 0, height: 0 })
+      const blob = toBlob(item)
+      if (!blob) continue
+      photos.push({ thumb: blob, full: blob, width: 0, height: 0 })
       continue
     }
     if (!item || typeof item !== 'object') continue
 
-    const record = item as { thumb?: unknown; view?: unknown; width?: unknown; height?: unknown }
-    const view =
-      record.view instanceof Blob
-        ? record.view
-        : typeof record.view === 'string' && record.view.startsWith('data:')
-          ? dataURLToBlob(record.view)
-          : null
-    if (!view) continue
-
-    const thumb =
-      record.thumb instanceof Blob
-        ? record.thumb
-        : typeof record.thumb === 'string' && record.thumb.startsWith('data:')
-          ? dataURLToBlob(record.thumb)
-          : view
+    const record = item as { thumb?: unknown; full?: unknown; view?: unknown; width?: unknown; height?: unknown }
+    // full 优先；老数据只有 view，就把它当 full
+    const full = toBlob(record.full) ?? toBlob(record.view)
+    const thumb = toBlob(record.thumb) ?? full
+    if (!full || !thumb) continue
 
     photos.push({
       thumb,
-      view,
+      full,
       width: typeof record.width === 'number' ? record.width : 0,
       height: typeof record.height === 'number' ? record.height : 0,
     })
@@ -133,7 +135,7 @@ export async function buildBackupJSON(entries: Entry[]): Promise<string> {
     entries: await Promise.all(
       entries.map(async (entry) => ({
         ...entry,
-        photos: await Promise.all(entry.photos.map((photo) => blobToDataURL(photo.view))),
+        photos: await Promise.all(entry.photos.map((photo) => blobToDataURL(photo.full))),
       })),
     ),
   }

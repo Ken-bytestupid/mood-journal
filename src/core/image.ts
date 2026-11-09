@@ -1,5 +1,9 @@
 /**
- * 照片压缩：把手机原图（常见 3–8MB）压成两档图，存成 Blob。
+ * 照片压缩：一张原图 → 两档图，都存成 Blob。
+ *
+ * 两档的用途：
+ *   · thumb：长边 480 的缩略图，列表和记录详情都显示它
+ *   · full ：**保持原始像素**，只降画质；详情页点缩略图才加载，用于看细节
  *
  * 格式不是写死的，按设备能力来：
  *   · Chrome / Edge / Android / Firefox 支持 canvas 编码 WebP → 用 WebP（同画质约小 45%）
@@ -8,26 +12,26 @@
  * 两条路产出的图所有现代设备都能解码：WebP 解码从 Safari 14 / Chrome 32 / Firefox 65 起支持，
  * JPEG 更是从 1992 年来的通用格式。
  *
- * 实测体积（原图 1773×2364 / 542KB）：
- *   1440 · WebP q0.80 ≈ 102KB ／ JPEG q0.78 ≈ 170KB
- *    480 · WebP q0.72 ≈  16KB ／ JPEG q0.70 ≈  22KB
+ * full 的体积控制：起点 q0.62（JPEG 0.58），超过 900KB 依次降画质到 0.5 / 0.42 / 0.34，
+ * 只有极端高纹理照片才会退到缩尺寸（2560 → 2048）。
  *
  * 存 Blob 而不是 base64 dataURL：少 33% 体积，列表渲染也不用解析大字符串。
  */
 import type { Photo } from './types'
 
-const VIEW_EDGE = 1440
 const THUMB_EDGE = 480
-/** 查看图超过这个大小就再降一档，避免个别高纹理照片撑爆存储。 */
-const VIEW_MAX_BYTES = 380 * 1024
+/** 原尺寸图的起始画质，以及体积超标时依次尝试的更低画质。 */
+const FULL_QUALITY: Record<EncodeType, number> = { 'image/webp': 0.62, 'image/jpeg': 0.58 }
+const FULL_QUALITY_STEPS = [0.5, 0.42, 0.34]
+/** 原尺寸图的目标上限：再大就继续降画质，实在降不下来才缩尺寸。 */
+const FULL_MAX_BYTES = 900 * 1024
+/** 最后的兜底缩尺寸（只有极端高纹理照片会走到）。 */
+const FULL_FALLBACK_EDGES = [2560, 2048]
 
 export type EncodeType = 'image/webp' | 'image/jpeg'
 
 /** 每种格式的质量：JPEG 有损更明显，取值略低一点也不损失观感。 */
-const QUALITY: Record<EncodeType, { view: number; thumb: number }> = {
-  'image/webp': { view: 0.8, thumb: 0.72 },
-  'image/jpeg': { view: 0.78, thumb: 0.7 },
-}
+const THUMB_QUALITY: Record<EncodeType, number> = { 'image/webp': 0.72, 'image/jpeg': 0.7 }
 
 let encodeType: EncodeType | null = null
 
@@ -101,32 +105,51 @@ function encode(canvas: HTMLCanvasElement, type: EncodeType, quality: number): P
   })
 }
 
-/** 主入口：一张原始文件 → 缩略图 + 查看图。 */
+/** 按原始像素画一张画布（不缩放）。 */
+function drawOriginal(img: HTMLImageElement): { canvas: HTMLCanvasElement; width: number; height: number } {
+  const width = img.naturalWidth || img.width
+  const height = img.naturalHeight || img.height
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('当前浏览器不支持图片处理')
+  ctx.drawImage(img, 0, 0, width, height)
+  return { canvas, width, height }
+}
+
+/**
+ * 主入口：一张原始文件 → 缩略图 + 原尺寸图。
+ *
+ * 原尺寸图保持原始像素，只降画质；体积超 900KB 时依次降画质，
+ * 极端情况（高纹理 / 超大图）才退到缩尺寸。
+ */
 export async function compressPhoto(file: File): Promise<Photo> {
   const img = await loadImage(file)
   const type = preferredImageType()
   const sourceWidth = img.naturalWidth || img.width
   const sourceHeight = img.naturalHeight || img.height
 
-  const quality = QUALITY[type]
-  const view = drawScaled(img, VIEW_EDGE)
-  let viewBlob = await encode(view.canvas, type, quality.view)
-
-  // 个别纹理很碎的照片会偏大：先降质量，再不行缩尺寸
-  if (viewBlob.size > VIEW_MAX_BYTES) {
-    const lowerQuality = await encode(view.canvas, type, Math.max(0.55, quality.view - 0.14))
-    if (lowerQuality.size < viewBlob.size) viewBlob = lowerQuality
-  }
-  if (viewBlob.size > VIEW_MAX_BYTES * 1.5) {
-    const smaller = drawScaled(img, 1080)
-    const retry = await encode(smaller.canvas, type, quality.view - 0.1)
-    if (retry.size < viewBlob.size) viewBlob = retry
-  }
-
   const thumb = drawScaled(img, THUMB_EDGE)
-  const thumbBlob = await encode(thumb.canvas, type, quality.thumb)
+  const thumbBlob = await encode(thumb.canvas, type, THUMB_QUALITY[type])
 
-  return { thumb: thumbBlob, view: viewBlob, width: sourceWidth, height: sourceHeight }
+  const original = drawOriginal(img)
+  let fullBlob = await encode(original.canvas, type, FULL_QUALITY[type])
+
+  for (const quality of FULL_QUALITY_STEPS) {
+    if (fullBlob.size <= FULL_MAX_BYTES) break
+    const next = await encode(original.canvas, type, quality)
+    if (next.size < fullBlob.size) fullBlob = next
+  }
+
+  for (const edge of FULL_FALLBACK_EDGES) {
+    if (fullBlob.size <= FULL_MAX_BYTES) break
+    const smaller = drawScaled(img, edge)
+    const next = await encode(smaller.canvas, type, 0.5)
+    if (next.size < fullBlob.size) fullBlob = next
+  }
+
+  return { thumb: thumbBlob, full: fullBlob, width: sourceWidth, height: sourceHeight }
 }
 
 /** 备份/导入用：dataURL ↔ Blob。 */

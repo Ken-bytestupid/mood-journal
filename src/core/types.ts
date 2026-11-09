@@ -15,13 +15,13 @@ export interface Emotion {
 
 /**
  * 一张照片存两档，都用 Blob（不是 base64，省 33% 体积，也不占 JS 字符串内存）：
- *   - thumb：列表缩略图，长边 480，十几 KB
- *   - view ：点开看的图，长边 1440，约 100KB
+ *   - thumb：缩略图，长边 480。列表和记录详情里显示的都是它，十几 KB
+ *   - full ：原尺寸图（保持原始像素，只降画质），详情页点缩略图才加载它
  */
 export interface Photo {
   thumb: Blob
-  view: Blob
-  /** 原图尺寸，仅作记录（0 表示旧数据没存）。 */
+  full: Blob
+  /** 原图尺寸（0 表示旧数据没存）。 */
   width: number
   height: number
 }
