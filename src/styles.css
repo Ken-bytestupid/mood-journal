@@ -1280,12 +1280,20 @@ button {
 }
 
 /* 奶白色的小页码，落在暗色背景上 */
-.reader-counter {
+.reader-counter,
+.reader-hint {
   font-size: 12px;
   letter-spacing: 0.12em;
   color: #f4f1ea;
   opacity: 0.82;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  margin: 0;
+}
+
+/* 跟页码同一列、紧贴在其下方，卡片大小变化时一起移动 */
+.reader-hint {
+  margin-top: -6px;
 }
 
 @keyframes reader-fade {

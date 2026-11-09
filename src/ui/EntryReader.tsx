@@ -175,6 +175,7 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
         <div className="reader-counter" aria-live="polite">
           {index + 1} / {entries.length}
         </div>
+        {entries.length > 1 ? <p className="reader-hint">左右滑动翻页查看</p> : null}
       </div>
 
       {photoIndex !== null ? (
