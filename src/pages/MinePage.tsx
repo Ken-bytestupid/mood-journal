@@ -170,9 +170,7 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     <div className="page mine" hidden={hidden}>
       <header className="page-head">
         <h1>我的</h1>
-        <p className="page-brand">
-          mood <span className="brand-amp">&amp;</span> memory
-        </p>
+        <p className="page-brand">mood &amp; memory</p>
       </header>
 
       <section className="stats">
