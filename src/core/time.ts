@@ -50,6 +50,21 @@ export function dayTitle(ts: number): string {
   return `${dateText(ts)} ${weekText(ts)}`
 }
 
+/** 本周从周一开始。 */
+export function startOfWeek(now = Date.now()): number {
+  const base = new Date(startOfDay(now))
+  const offset = (base.getDay() + 6) % 7
+  base.setDate(base.getDate() - offset)
+  return base.getTime()
+}
+
+const WEEKDAY_NAMES = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+
+/** 星期五 —— 「本周」列表里的分组标题 */
+export function weekDayLabel(ts: number): string {
+  return WEEKDAY_NAMES[new Date(ts).getDay()] ?? ''
+}
+
 /** 10月31日 周五 19:53 */
 export function fullText(ts: number): string {
   return `${dayTitle(ts)} ${clockText(ts)}`

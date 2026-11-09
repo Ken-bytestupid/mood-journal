@@ -490,30 +490,56 @@ button {
   margin-bottom: 10px;
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 12px;
+/* 今天 + 本周两个入口 */
+.today-block {
+  margin-bottom: 4px;
 }
 
-.stat {
-  padding: 10px 12px;
+.today-empty {
+  padding: 18px 2px 22px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.tile-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  text-align: left;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
+  transition: transform 0.16s var(--ease), background-color 0.16s var(--ease);
 }
 
-.stat-value {
-  font-size: 19px;
+.tile:active {
+  transform: scale(0.985);
+  background: var(--surface-2);
+}
+
+.tile-title {
+  font-size: 14px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
 }
 
-.stat-label {
-  margin-top: 2px;
-  font-size: 11.5px;
+.tile-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-empty {
+  padding: 20px 2px 26px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 
@@ -1060,6 +1086,134 @@ button {
 .toast[data-open='true'] {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+/* ============================================================ 翻页阅读器 */
+
+.reader-root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reader-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(18, 16, 14, 0.55);
+  animation: reader-fade 0.2s var(--ease);
+}
+
+.reader-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, calc(100% - 40px));
+  max-height: 84dvh;
+}
+
+.reader-card {
+  width: 100%;
+  max-height: 72dvh;
+  overflow-y: auto;
+  padding: 16px 18px 10px;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+  touch-action: pan-y;
+  animation: reader-in 0.22s var(--ease);
+}
+
+.reader-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.reader-face {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.reader-time {
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-title {
+  margin: 12px 0 0;
+  font-size: 19px;
+  line-height: 1.35;
+}
+
+.reader-text {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reader-photos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.reader-photos img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.reader-delete {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--neg);
+  opacity: 0.85;
+}
+
+/* 奶白色的小页码，落在暗色背景上 */
+.reader-counter {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #f4f1ea;
+  opacity: 0.82;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes reader-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes reader-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ============================================================ 动画 */

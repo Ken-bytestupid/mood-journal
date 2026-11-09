@@ -6,30 +6,15 @@ import {
   type StorageBackend,
   type StorageStatus,
 } from '../core/durability'
-import { clockText, dayKey, dayTitle, fullText, groupByDay, startOfDay, streakDays } from '../core/time'
+import { clockText, dateText, dayKey, groupByDay, startOfWeek, streakDays, weekDayLabel } from '../core/time'
 import type { Entry, Polarity } from '../core/types'
 import { buildBackupJSON } from '../modules/entries/store'
-import { POLARITY_COLOR, POLARITY_LABEL, emotionById } from '../modules/mood/emotions'
+import { POLARITY_COLOR, emotionById } from '../modules/mood/emotions'
 import { BlobImage } from '../ui/BlobImage'
+import { EntryReader } from '../ui/EntryReader'
 import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
 import { useToast } from '../ui/Toast'
-
-/** 本周从周一开始。 */
-function startOfWeek(now: number): number {
-  const base = new Date(startOfDay(now))
-  const offset = (base.getDay() + 6) % 7
-  base.setDate(base.getDate() - offset)
-  return base.getTime()
-}
-
-function timeAgo(ts: number): string {
-  const diff = Date.now() - ts
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
-  return `${Math.floor(diff / 86_400_000)} 天前`
-}
 
 interface MinePageProps {
   entries: Entry[]
@@ -42,13 +27,55 @@ interface MinePageProps {
   onRestore: () => Promise<number>
 }
 
-/** 我的页：历史记录、简单统计、备份。「记录」页只负责写，看历史都在这儿。 */
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`
+  return `${Math.floor(diff / 86_400_000)} 天前`
+}
+
+/** 列表里的一行。今天 / 本周 共用同一套外观。 */
+function EntryRow({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
+  const emotion = emotionById(entry.emotionId)
+  return (
+    <button type="button" className="entry" onClick={onOpen}>
+      <span className="entry-mood" style={{ color: POLARITY_COLOR[entry.polarity] }}>
+        {emotion ? (
+          <span className="entry-emoji">{emotion.emoji}</span>
+        ) : (
+          <MoodFace polarity={entry.polarity} className="entry-face" />
+        )}
+      </span>
+      <span className="entry-main">
+        <span className="entry-top">
+          <span className="entry-time">{clockText(entry.createdAt)}</span>
+          {entry.title ? <span className="entry-title">{entry.title}</span> : null}
+        </span>
+        {entry.text ? <span className="entry-text">{entry.text}</span> : null}
+        {entry.photos.length > 0 ? (
+          <span className="entry-photos">
+            {entry.photos.slice(0, 3).map((photo, index) => (
+              <BlobImage key={index} blob={photo.thumb} alt={`照片 ${index + 1}`} />
+            ))}
+          </span>
+        ) : null}
+      </span>
+    </button>
+  )
+}
+
+/**
+ * 我的页：只看「今天」的记录，统计收进按钮和副标题里。
+ * 「本周」抽屉里按星期分组；点开任意一条进居中的翻页阅读器。
+ */
 export function MinePage({ entries, loading, hidden, backend, onDelete, onClear, onImport, onRestore }: MinePageProps) {
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [selected, setSelected] = useState<Entry | null>(null)
   const [status, setStatus] = useState<StorageStatus | null>(null)
   const [generalOpen, setGeneralOpen] = useState(false)
+  const [weekOpen, setWeekOpen] = useState(false)
+  const [reader, setReader] = useState<{ items: Entry[]; index: number; origin: 'today' | 'week' } | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -58,9 +85,8 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     return () => {
       alive = false
     }
-  }, [backend, entries.length])
+  }, [backend])
 
-  // 打开「通用」时刷新一次存储状态，避免看到旧数字
   useEffect(() => {
     if (!generalOpen) return
     void readStorageStatus(backend).then(setStatus)
@@ -70,22 +96,49 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     setStatus(await readStorageStatus(backend))
   }
 
-  const groups = useMemo(() => groupByDay(entries), [entries])
-
   const streak = useMemo(() => streakDays(entries.map((entry) => entry.createdAt)), [entries])
 
-  const weekCount = useMemo(() => {
-    const weekStart = startOfWeek(Date.now())
-    return entries.filter((entry) => entry.createdAt >= weekStart).length
+  const todayEntries = useMemo(() => {
+    const today = dayKey(Date.now())
+    return entries.filter((entry) => dayKey(entry.createdAt) === today)
   }, [entries])
 
-  const counts = useMemo(() => {
+  const weekEntries = useMemo(() => {
+    const from = startOfWeek()
+    return entries.filter((entry) => entry.createdAt >= from)
+  }, [entries])
+
+  const weekGroups = useMemo(() => groupByDay(weekEntries), [weekEntries])
+
+  const weekCounts = useMemo(() => {
     const tally: Record<Polarity, number> = { positive: 0, negative: 0, plain: 0 }
-    for (const entry of entries) tally[entry.polarity] += 1
+    for (const entry of weekEntries) tally[entry.polarity] += 1
     return tally
-  }, [entries])
+  }, [weekEntries])
 
-  const classified = counts.positive + counts.negative
+  const classified = weekCounts.positive + weekCounts.negative
+
+  /**
+   * 从「本周」打开阅读器时先把抽屉收起来，避免两层叠在一起；
+   * 关掉阅读器再回到「本周」，等于"看完翻回目录"。
+   */
+  const openReader = (items: Entry[], index: number, origin: 'today' | 'week') => {
+    if (origin === 'week') setWeekOpen(false)
+    setReader({ items, index, origin })
+  }
+
+  const closeReader = () => {
+    const origin = reader?.origin
+    setReader(null)
+    if (origin === 'week') setWeekOpen(true)
+  }
+
+  const deleteFromReader = async (entry: Entry) => {
+    if (!window.confirm('删除这条记录？')) return
+    await onDelete(entry.id)
+    closeReader()
+    toast('已删除')
+  }
 
   /** 导出优先走系统分享（iOS 上可以直接存进「文件」App / iCloud 云盘），不支持再退回下载。 */
   const exportBackup = async () => {
@@ -158,53 +211,32 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     toast('已清空')
   }
 
-  const deleteSelected = async () => {
-    if (!selected) return
-    if (!window.confirm('删除这条记录？')) return
-    await onDelete(selected.id)
-    setSelected(null)
-    toast('已删除')
-  }
-
   return (
     <div className="page mine" hidden={hidden}>
       <header className="page-head">
         <h1>我的</h1>
-        <p className="page-brand">mood &amp; memory</p>
+        <p className="page-brand">
+          mood &amp; memory · 连续 {streak} 天
+        </p>
       </header>
-
-      <section className="stats">
-        <div className="stat">
-          <div className="stat-value">{entries.length}</div>
-          <div className="stat-label">记录总数</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{streak}</div>
-          <div className="stat-label">连续天数</div>
-        </div>
-        <div className="stat">
-          <div className="stat-value">{weekCount}</div>
-          <div className="stat-label">本周</div>
-        </div>
-      </section>
 
       <section className="mood-strip">
         <div className="mood-strip-head">
-          <span>心情分布</span>
+          <span>本周心情</span>
           <span>
-            积极 {counts.positive} · 消极 {counts.negative} · 只是记录 {counts.plain}
+            积极 {weekCounts.positive} · 消极 {weekCounts.negative} · 只是记录 {weekCounts.plain}
           </span>
         </div>
         <div className="mood-bar">
           <span
             style={{
-              width: classified === 0 ? '0%' : `${(counts.positive / classified) * 100}%`,
+              width: classified === 0 ? '0%' : `${(weekCounts.positive / classified) * 100}%`,
               background: 'var(--pos)',
             }}
           />
           <span
             style={{
-              width: classified === 0 ? '0%' : `${(counts.negative / classified) * 100}%`,
+              width: classified === 0 ? '0%' : `${(weekCounts.negative / classified) * 100}%`,
               background: 'var(--neg)',
             }}
           />
@@ -220,54 +252,30 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
         </div>
       ) : null}
 
-      {groups.length === 0 ? (
-        <div className="empty">
-          <svg className="empty-illustration" viewBox="0 0 96 96" aria-hidden="true">
-            <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <rect x="22" y="14" width="52" height="68" rx="8" />
-              <path d="M34 34h28M34 46h28M34 58h16" />
-            </g>
-          </svg>
-          {loading ? '正在读取记录…' : '还没有记录，去「记录」写第一条吧'}
+      <section className="today-block">
+        <div className="day-head">
+          <span className="day-label">今天</span>
+          <span className="day-date">{dateText(Date.now())}</span>
         </div>
-      ) : (
-        groups.map((group) => (
-          <section className="day-group" key={group.key}>
-            <div className="day-head">
-              <span className="day-label">{group.label}</span>
-              <span className="day-date">{dayTitle(group.ts)}</span>
-            </div>
-            {group.items.map((entry) => {
-              const emotion = emotionById(entry.emotionId)
-              return (
-                <button type="button" className="entry" key={entry.id} onClick={() => setSelected(entry)}>
-                  <span className="entry-mood" style={{ color: POLARITY_COLOR[entry.polarity] }}>
-                    {emotion ? (
-                      <span className="entry-emoji">{emotion.emoji}</span>
-                    ) : (
-                      <MoodFace polarity={entry.polarity} className="entry-face" />
-                    )}
-                  </span>
-                  <span className="entry-main">
-                    <span className="entry-top">
-                      <span className="entry-time">{clockText(entry.createdAt)}</span>
-                      {entry.title ? <span className="entry-title">{entry.title}</span> : null}
-                    </span>
-                    {entry.text ? <span className="entry-text">{entry.text}</span> : null}
-                    {entry.photos.length > 0 ? (
-                      <span className="entry-photos">
-                        {entry.photos.slice(0, 3).map((photo, index) => (
-                          <BlobImage key={index} blob={photo.thumb} alt={`照片 ${index + 1}`} />
-                        ))}
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              )
-            })}
-          </section>
-        ))
-      )}
+        {todayEntries.length === 0 ? (
+          <p className="today-empty">{loading ? '正在读取…' : '今天还没有记录，去「记录」写一条吧'}</p>
+        ) : (
+          todayEntries.map((entry) => (
+            <EntryRow key={entry.id} entry={entry} onOpen={() => openReader(todayEntries, todayEntries.indexOf(entry), 'today')} />
+          ))
+        )}
+      </section>
+
+      <div className="tile-row">
+        <button type="button" className="tile" onClick={() => setWeekOpen(true)}>
+          <span className="tile-title">本周</span>
+          <span className="tile-count">{weekEntries.length} 条</span>
+        </button>
+        <button type="button" className="tile" onClick={() => toast('「记忆」还在做，先用「本周」翻翻看')}>
+          <span className="tile-title">记忆</span>
+          <span className="tile-count">{entries.length} 条</span>
+        </button>
+      </div>
 
       <section className="data-card">
         <button type="button" className="data-row" onClick={() => setGeneralOpen(true)}>
@@ -275,6 +283,47 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
           <small>存储 · 备份 · 清空 ›</small>
         </button>
       </section>
+
+      <Sheet
+        open={weekOpen}
+        onClose={() => setWeekOpen(false)}
+        title="本周"
+        footer={
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} onClick={() => setWeekOpen(false)}>
+            关闭
+          </button>
+        }
+      >
+        {weekGroups.length === 0 ? (
+          <p className="sheet-empty">本周还没有记录</p>
+        ) : (
+          weekGroups.map((group) => (
+            <section className="day-group" key={group.key}>
+              <div className="day-head">
+                <span className="day-label">{weekDayLabel(group.ts)}</span>
+                <span className="day-date">{dateText(group.ts)}</span>
+              </div>
+              {group.items.map((entry) => (
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  onOpen={() => openReader(weekEntries, weekEntries.indexOf(entry), 'week')}
+                />
+              ))}
+            </section>
+          ))
+        )}
+      </Sheet>
+
+      {reader ? (
+        <EntryReader
+          entries={reader.items}
+          index={reader.index}
+          onIndexChange={(index) => setReader((current) => (current ? { ...current, index } : current))}
+          onClose={closeReader}
+          onDelete={deleteFromReader}
+        />
+      ) : null}
 
       <Sheet
         open={generalOpen}
@@ -357,54 +406,6 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
           </button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importBackupFile} />
         </section>
-      </Sheet>
-
-      <Sheet
-        open={selected !== null}
-        onClose={() => setSelected(null)}
-        title="这条记录"
-        footer={
-          <div className="sheet-actions">
-            <button type="button" className="btn-ghost" onClick={() => setSelected(null)}>
-              关闭
-            </button>
-            <button type="button" className="btn-danger" onClick={deleteSelected}>
-              删除
-            </button>
-          </div>
-        }
-      >
-        {selected ? (
-          <>
-            <div className="detail-meta">
-              <MoodFace
-                polarity={selected.polarity}
-                className="detail-face"
-                style={{ color: POLARITY_COLOR[selected.polarity] }}
-              />
-              <span>{POLARITY_LABEL[selected.polarity]}</span>
-              {emotionById(selected.emotionId) ? (
-                <>
-                  <span>·</span>
-                  <span>
-                    {emotionById(selected.emotionId)?.emoji} {emotionById(selected.emotionId)?.label}
-                  </span>
-                </>
-              ) : null}
-              <span>·</span>
-              <span>{fullText(selected.createdAt)}</span>
-            </div>
-            {selected.title ? <h3 className="detail-title">{selected.title}</h3> : null}
-            {selected.text ? <p className="detail-text">{selected.text}</p> : null}
-            {selected.photos.length > 0 ? (
-              <div className="detail-photos">
-                {selected.photos.map((photo, index) => (
-                  <BlobImage key={index} blob={photo.view} alt={`照片 ${index + 1}`} />
-                ))}
-              </div>
-            ) : null}
-          </>
-        ) : null}
       </Sheet>
     </div>
   )
