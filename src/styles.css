@@ -802,14 +802,6 @@ button {
   color: var(--muted);
 }
 
-.empty-illustration {
-  display: block;
-  margin: 0 auto 10px;
-  width: 84px;
-  height: 84px;
-  opacity: 0.7;
-}
-
 /* ============================================================ 弹层 / toast */
 
 .sheet-root {
@@ -1002,67 +994,6 @@ button {
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   font-size: 14px;
-}
-
-.btn-danger {
-  height: 42px;
-  padding: 0 16px;
-  border-radius: 12px;
-  background: var(--neg);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.sheet-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.sheet-actions > * {
-  flex: 1;
-}
-
-.detail-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 12.5px;
-  color: var(--muted);
-}
-
-.detail-face {
-  width: 18px;
-  height: 18px;
-  flex: 0 0 auto;
-}
-
-.detail-title {
-  margin: 0 0 8px;
-  font-size: 18px;
-}
-
-.detail-text {
-  font-size: 15px;
-  line-height: 1.75;
-  color: var(--ink-2);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.detail-photos {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.detail-photos img {
-  width: 100%;
-  aspect-ratio: 1;
-  border-radius: 10px;
-  object-fit: cover;
 }
 
 .toast {
@@ -1282,8 +1213,7 @@ button {
   opacity: 0.85;
 }
 
-/* 奶白色的小页码，落在暗色背景上 */
-.reader-counter,
+/* 奶白色的小页码，落在暗色背景上 */.reader-counter,
 .reader-hint {
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -1297,6 +1227,20 @@ button {
 /* 跟页码同一列、紧贴在其下方，卡片大小变化时一起移动 */
 .reader-hint {
   margin-top: -6px;
+}
+
+/* 右上角关闭：中间点按不做任何事，关闭走这里 */
+.reader-close {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f7f4ee;
+  font-size: 20px;
+  line-height: 1;
 }
 
 @keyframes reader-fade {

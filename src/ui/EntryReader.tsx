@@ -29,7 +29,6 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   const startY = useRef(0)
   const lastX = useRef(0)
   const dragging = useRef(false)
-  const onCard = useRef(false)
   const onInteractive = useRef(false)
   const busy = useRef(false)
 
@@ -74,10 +73,8 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
     startX.current = event.clientX
     lastX.current = event.clientX
     startY.current = event.clientY
-    const target = event.target as Element
-    onCard.current = !!target.closest('.reader-card')
-    // 按钮、链接上的点击交给它们自己处理（删除、看照片），不当作翻页/关闭
-    onInteractive.current = !!target.closest('button, a, input, textarea')
+    // 按钮、链接上的点击交给它们自己处理（删除、看照片），不当作翻页
+    onInteractive.current = !!(event.target as Element).closest('button, a, input, textarea')
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
 
@@ -106,11 +103,11 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
     if (!dragging.current) {
       if (cancelled || onInteractive.current) return
 
-      // 电子阅读器式分区点击：左三分之一上一页，右三分之一下一页，中间点空白关闭
+      // 电子阅读器式分区点击：左三分之一上一页，右三分之一下一页，中间退出详情
       const third = window.innerWidth / 3
       if (endX < third) step(-1)
       else if (endX > third * 2) step(1)
-      else if (!onCard.current) onClose()
+      else onClose()
       return
     }
 
@@ -195,6 +192,10 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
         </div>
         {entries.length > 1 ? <p className="reader-hint">左右滑动翻页查看</p> : null}
       </div>
+
+      <button type="button" className="reader-close" aria-label="关闭" onClick={onClose}>
+        ×
+      </button>
 
       {photoIndex !== null ? (
         <PhotoViewer
