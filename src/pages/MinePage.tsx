@@ -216,7 +216,7 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
       <header className="page-head">
         <h1>我的</h1>
         <p className="page-brand">
-          mood &amp; memory · 连续 {streak} 天
+          mood &amp; memory · 连续记录 {streak} 天
         </p>
       </header>
 
