@@ -1612,6 +1612,16 @@ button {
   color: var(--ink-2);
 }
 
+.memory-confirm {
+  height: 40px;
+  padding: 0 var(--space-20);
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--text-13-5);
+  font-weight: 600;
+}
+
 .memory-hint {
   position: absolute;
   bottom: calc(var(--space-24) + env(safe-area-inset-bottom));

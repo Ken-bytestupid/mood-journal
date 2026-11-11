@@ -1,4 +1,4 @@
-// 「记忆」最小演示自检：月份环旋转 / 选中后快门换场 / 周环 / 年份进位。
+// 「记忆」演示自检：转盘方向 / 数字正立 / 按钮确认选月 / 周环 / 年份进位。
 import { writeFileSync } from 'node:fs'
 
 const PORT = Number(process.argv[2] ?? 9229)
@@ -45,18 +45,23 @@ const state = () =>
   evaluate(`(() => {
     const root = document.querySelector('.memory')
     if (!root) return { open: false }
+    const active = document.querySelector('.memory-item[data-active="true"]')
     return {
-      open: true,
       stage: root.dataset.stage,
       year: document.querySelector('.memory-year')?.textContent,
       caption: document.querySelector('.memory-caption')?.innerText.replace(/\\n/g, ' / '),
-      active: [...document.querySelectorAll('.memory-item[data-active="true"]')].map((n) => n.textContent),
-      disabled: [...document.querySelectorAll('.memory-item[data-disabled="true"]')].map((n) => n.textContent),
-      shutter: getComputedStyle(document.querySelector('.memory-shutter')).opacity,
+      active: active?.textContent ?? null,
+      // 正立的判定：元素的最终旋转应接近 0
+      activeRotation: active ? (() => {
+        const m = new DOMMatrixReadOnly(getComputedStyle(active).transform)
+        return Math.round((Math.atan2(m.b, m.a) * 180) / Math.PI)
+      })() : null,
+      confirm: !!document.querySelector('.memory-confirm'),
+      back: !!document.querySelector('.memory-back'),
     }
   })()`)
 
-/** 绕屏幕中心沿圆弧拖动 degrees 度（正 = 顺时针） */
+/** 绕屏幕中心沿圆弧拖动 degrees 度（负 = 逆时针） */
 const dragArc = async (degrees, radius = 180) => {
   const cx = 195
   const cy = 422
@@ -69,7 +74,7 @@ const dragArc = async (degrees, radius = 180) => {
     type: 'touchStart',
     touchPoints: [{ ...start, radiusX: 6, radiusY: 6, force: 1, id: 1 }],
   })
-  const steps = 12
+  const steps = 20
   for (let i = 1; i <= steps; i += 1) {
     const p = point(-90 + (degrees * i) / steps)
     await send('Input.dispatchTouchEvent', {
@@ -95,25 +100,31 @@ await sleep(900)
 console.log('打开:', JSON.stringify(await state()))
 await shot('mem-month')
 
-// 转 60°（= 两个月），松手应换场到周环
-await dragArc(60)
-await sleep(1600)
-console.log('选月后:', JSON.stringify(await state()))
+// 逆时针拖 110°（灵敏度 0.55 → 约 60°，也就是两格）
+await dragArc(-110)
+await sleep(700)
+console.log('逆时针拖 110°:', JSON.stringify(await state()))
+await shot('mem-rotated')
+
+// 用按钮确认选月
+await evaluate(`document.querySelector('.memory-confirm').click()`)
+await sleep(1500)
+console.log('点「选这个月」:', JSON.stringify(await state()))
 await shot('mem-week')
 
 // 周环上转一下
-await dragArc(40)
-await sleep(900)
+await dragArc(-40)
+await sleep(700)
 console.log('转周环:', JSON.stringify(await state()))
 
 // 回退
 await evaluate(`document.querySelector('.memory-back').click()`)
-await sleep(1600)
-console.log('回退后:', JSON.stringify(await state()))
+await sleep(1500)
+console.log('回退:', JSON.stringify(await state()))
 
-// 连续转一整圈多，验证年份进位
-await dragArc(400)
-await sleep(600)
-console.log('转 400° 后:', JSON.stringify(await state()))
+// 逆时针拖 790°（灵敏度后约 434° ≈ 14 格）验证年份进位
+await dragArc(-790)
+await sleep(700)
+console.log('大幅逆时针:', JSON.stringify(await state()))
 
 ws.close()

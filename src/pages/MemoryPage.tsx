@@ -8,8 +8,8 @@ interface MemoryPageProps {
 }
 
 const MONTH_STEP = 360 / 12
-/** 拖动超过这个角度才算「转了一下」，轻点不算选中 */
-const SELECT_TURNS = 12
+/** 手指转动多少度，圆盘才转多少度（越小越「钝」，越容易停在想要的格子上） */
+const SENSITIVITY = 0.55
 
 type Stage = 'month' | 'week'
 type Phase = 'idle' | 'dragging' | 'busy'
@@ -70,8 +70,8 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
     return { byMonth: months, byWeek: weeks, demoMode: entries.length === 0 }
   }, [entries])
 
-  // 月份环当前指向
-  const monthSlots = Math.round(spin / MONTH_STEP)
+  // 月份环当前指向：数字按草图顺时针排，所以「往后走」是逆时针拖动
+  const monthSlots = Math.round(-spin / MONTH_STEP)
   const monthIndex = mod(monthSlots, 12)
   const year = baseYear + Math.floor(monthSlots / 12)
 
@@ -92,7 +92,7 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
   }, [year, monthIndex, byWeek, demoMode])
 
   const weekStep = weeks.length > 0 ? 360 / weeks.length : 360
-  const weekSlots = Math.round(weekSpin / weekStep)
+  const weekSlots = Math.round(-weekSpin / weekStep)
   const weekIndex = weeks.length > 0 ? mod(weekSlots, weeks.length) : 0
 
   const monthEnabled = useCallback(
@@ -145,28 +145,31 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
     [animateShutter],
   )
 
-  /** 松手：吸附 → 确实转动过才触发选中 */
+  /** 松手只做吸附；真正「选中」靠下面的按钮 */
   const release = useCallback(() => {
     if (!drag.current.active) return
     drag.current.active = false
-    const moved = Math.abs(drag.current.moved)
     drag.current.moved = 0
     if (phaseRef.current === 'busy') return
 
     if (stage === 'month') {
       const target = snapSlot(monthSlots, 12, monthEnabled)
-      setSpin(target * MONTH_STEP)
-      if (moved < SELECT_TURNS) return
-      void transition(() => {
-        setStage('week')
-        setWeekSpin(0)
-      })
+      setSpin(-target * MONTH_STEP)
       return
     }
 
     const target = snapSlot(weekSlots, weeks.length, (index) => weeks[index]?.enabled ?? false)
-    setWeekSpin(target * weekStep)
-  }, [monthEnabled, monthSlots, snapSlot, stage, transition, weekSlots, weekStep, weeks])
+    setWeekSpin(-target * weekStep)
+  }, [monthEnabled, monthSlots, snapSlot, stage, weekSlots, weekStep, weeks])
+
+  /** 点「选这个月」才换场到周环 */
+  const confirmMonth = () => {
+    if (stage !== 'month') return
+    void transition(() => {
+      setStage('week')
+      setWeekSpin(0)
+    })
+  }
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (phase === 'busy') return
@@ -191,8 +194,9 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
     const delta = angleDelta(angle, drag.current.lastAngle)
     drag.current.lastAngle = angle
     drag.current.moved += delta
-    if (stage === 'month') setSpin((value) => value + delta)
-    else setWeekSpin((value) => value + delta)
+    const applied = delta * SENSITIVITY
+    if (stage === 'month') setSpin((value) => value + applied)
+    else setWeekSpin((value) => value + applied)
   }
 
   const onPointerUp = () => release()
@@ -227,14 +231,16 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
           <div className="memory-ring" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
             <div className="memory-ring-track" style={{ transform: `rotate(${spin}deg)` }}>
               {Array.from({ length: 12 }, (_, index) => {
-                const angle = -index * MONTH_STEP + spin
+                // 数字按草图顺时针排（1 在顶、2 在右上）；文字再反向转回来保持正立
+                const a = index * MONTH_STEP
+                const upright = -(spin + a)
                 return (
                   <span
                     key={index}
                     className="memory-item"
                     data-active={index === monthIndex ? 'true' : 'false'}
                     data-disabled={monthEnabled(index) ? 'false' : 'true'}
-                    style={{ transform: `rotate(${angle}deg) translateY(-118px) rotate(${-angle}deg)` }}
+                    style={{ transform: `rotate(${a}deg) translateY(-118px) rotate(${upright}deg)` }}
                   >
                     {index + 1}
                   </span>
@@ -247,14 +253,15 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
           <div className="memory-ring small" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
             <div className="memory-ring-track" style={{ transform: `rotate(${weekSpin}deg)` }}>
               {weeks.map((item, index) => {
-                const angle = -index * weekStep + weekSpin
+                const a = index * weekStep
+                const upright = -(weekSpin + a)
                 return (
                   <span
                     key={item.key}
                     className="memory-item"
                     data-active={index === weekIndex ? 'true' : 'false'}
                     data-disabled={item.enabled ? 'false' : 'true'}
-                    style={{ transform: `rotate(${angle}deg) translateY(-80px) rotate(${-angle}deg)` }}
+                    style={{ transform: `rotate(${a}deg) translateY(-80px) rotate(${upright}deg)` }}
                   >
                     {item.week}
                   </span>
@@ -282,13 +289,19 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
         )}
       </div>
 
-      {stage === 'week' ? (
+      {stage === 'month' ? (
+        <button type="button" className="memory-confirm" onClick={confirmMonth}>
+          选这个月
+        </button>
+      ) : (
         <button type="button" className="memory-back" onClick={goBack} aria-label="回到月份">
           ↩ 换个月份
         </button>
-      ) : null}
+      )}
 
-      <p className="memory-hint">在屏幕上滑动旋转 · 松开选中</p>
+      <p className="memory-hint">
+        {stage === 'month' ? '在屏幕上滑动旋转 · 点「选这个月」确认' : '滑动挑选周 · 松开吸附'}
+      </p>
 
       <div className="memory-shutter" aria-hidden="true">
         <div
