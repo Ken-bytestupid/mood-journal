@@ -73,6 +73,25 @@ scripts/                开发自检脚本（不参与构建）
   static-server.mjs     本地模拟 Pages 子路径部署
 ```
 
+## 设计 token（外观只从这里改）
+
+`src/styles.css` 顶部的 `:root` 是唯一的外观事实来源，67 个变量分四类：
+
+| 类别 | 变量 | 用途 |
+|---|---|---|
+| 基础色 | `--bg / --surface / --surface-2 / --ink / --ink-2 / --muted / --line / --pos / --neg` | 深浅两套，深色模式在 `prefers-color-scheme` 里覆盖同名变量 |
+| 浮层 | `--scrim-soft / --scrim / --scrim-dialog / --scrim-strong / --glass / --on-scrim / --on-scrim-soft / --on-solid / --badge-bg / --shadow-*` | 遮罩、玻璃按钮、遮罩上的奶白文字、阴影色 |
+| 排版 | `--font-ui`、`--text-10-5 … --text-22` | 字体栈与字号刻度 |
+| 尺寸 | `--radius-8 … --radius-pill`、`--space-4 … --space-30` | 圆角与间距刻度 |
+
+约定（后续开发请保持）：
+
+- 新样式一律用 `var(--*)`，不要再写颜色字面量或裸 px 字号
+- 间距优先用 `--space-*` 刻度（4/6/8/…/30）；`1/2/3/5/7` 这类微调保留字面量
+- 深色模式只覆盖颜色类变量，尺寸与排版两套共用
+- `scripts/tokenize.mjs` 可以做审计与批量收口（不加 `--write` 只报告）
+- 以后做主题切换（如 `[data-theme='sepia']`）只需要换一组变量值，组件不用动
+
 ## 交互约定（当前实现）
 
 - **记录页**：打开即可写。顶部左格是「这次的心情」，点开只有三项：**积极 / 消极 / 只是记录**；
