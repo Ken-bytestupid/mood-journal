@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { dateText, groupByDay, isoWeek, isoWeekKey, weekDayLabel } from '../core/time'
 import type { Entry } from '../core/types'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { CloseButton } from '../ui/CloseButton'
 import { EntryReader } from '../ui/EntryReader'
 import { EntryRow } from '../ui/EntryRow'
 
@@ -260,9 +261,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      <button type="button" className="memory-close" aria-label="关闭" onClick={onClose}>
-        ×
-      </button>
+      <CloseButton onClick={onClose} />
 
       <div className="memory-year">{year}</div>
 
@@ -312,6 +311,28 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
             <div className="memory-hole" aria-hidden="true" />
           </div>
         )}
+
+        {/* 快门只盖住圆环这一块，背景里的「我的」保持可见 */}
+        <div className="memory-shutter" aria-hidden="true">
+          <div
+            className="memory-veil"
+            style={{
+              ['--hole' as string]: `${Math.round((1 - shutter) * 170)}px`,
+              opacity: Math.min(1, shutter * 2.2),
+            }}
+          />
+          <div
+            className="memory-blades"
+            style={{
+              opacity: Math.min(1, Math.max(0, (shutter - 0.45) * 2.4)),
+              transform: `scale(${0.2 + shutter * 0.95}) rotate(${shutter * 30}deg)`,
+            }}
+          >
+            {[0, 60, 120, 180, 240, 300].map((angle) => (
+              <span key={angle} style={{ transform: `rotate(${angle + shutter * 34}deg)` }} />
+            ))}
+          </div>
+        </div>
       </div>
 
       {stage === 'list' ? (
@@ -422,27 +443,6 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
           void onDelete(target.id)
         }}
       />
-
-      <div className="memory-shutter" aria-hidden="true">
-        <div
-          className="memory-veil"
-          style={{
-            ['--hole' as string]: `${Math.round((1 - shutter) * 300)}px`,
-            opacity: Math.min(1, shutter * 2.2),
-          }}
-        />
-        <div
-          className="memory-blades"
-          style={{
-            opacity: Math.min(1, Math.max(0, (shutter - 0.45) * 2.4)),
-            transform: `scale(${0.2 + shutter * 0.95}) rotate(${shutter * 30}deg)`,
-          }}
-        >
-          {[0, 60, 120, 180, 240, 300].map((angle) => (
-            <span key={angle} style={{ transform: `rotate(${angle + shutter * 34}deg)` }} />
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

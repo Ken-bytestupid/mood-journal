@@ -1359,10 +1359,12 @@ button {
   object-fit: contain;
 }
 
-.photo-viewer-close {
+/* 所有浮层共用的关闭按钮（阅读器 / 看图 / 记忆） */
+.overlay-close {
   position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
-  right: 14px;
+  top: calc(var(--space-12) + env(safe-area-inset-top));
+  right: var(--space-14);
+  z-index: 3;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -1408,18 +1410,7 @@ button {
 }
 
 /* 右上角关闭：中间点按不做任何事，关闭走这里 */
-.reader-close {
-  position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
-  right: 14px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--glass);
-  color: var(--on-scrim);
-  font-size: var(--text-20);
-  line-height: 1;
-}
+/* 关闭按钮统一用 .overlay-close */
 
 @keyframes reader-fade {
   from {
@@ -1452,25 +1443,12 @@ button {
   align-items: center;
   justify-content: center;
   gap: var(--space-18);
-  background: var(--bg);
+  /* 背景仍然是「我的」页，这里只压暗一层（和阅读器同一个遮罩色） */
+  background: var(--scrim);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
-}
-
-.memory-close {
-  position: absolute;
-  top: calc(var(--space-12) + env(safe-area-inset-top));
-  right: var(--space-14);
-  z-index: 3;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: var(--text-20);
-  line-height: 1;
 }
 
 .memory-year {
@@ -1480,7 +1458,7 @@ button {
   transform: translateY(-50%);
   font-size: var(--text-19);
   font-weight: 600;
-  color: var(--muted);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1517,7 +1495,7 @@ button {
   position: relative;
   width: 268px;
   height: 268px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid rgba(33, 30, 26, 0.3);
   border-radius: 50%;
   transition:
     filter 260ms var(--ease),
@@ -1574,14 +1552,15 @@ button {
 }
 
 .memory-item[data-disabled='true'] {
-  color: var(--muted);
-  opacity: 0.32;
+  color: var(--ink-2);
+  opacity: 0.55;
 }
 
 .memory-item[data-active='true'] {
   color: var(--ink);
   font-weight: 600;
-  background: var(--surface-2);
+  background: var(--surface);
+  box-shadow: 0 1px 6px rgba(20, 16, 12, 0.16);
 }
 
 .memory-hole {
@@ -1591,7 +1570,7 @@ button {
   width: 46%;
   height: 46%;
   transform: translate(-50%, -50%);
-  border: 1px solid var(--line);
+  border: 1px solid rgba(33, 30, 26, 0.16);
   border-radius: 50%;
   background: transparent;
 }
@@ -1602,7 +1581,7 @@ button {
   align-items: center;
   gap: 3px;
   font-size: var(--text-13);
-  color: var(--muted);
+  color: var(--ink-2);
   text-align: center;
 }
 
@@ -1724,17 +1703,19 @@ button {
 
 .memory-hint {
   position: absolute;
-  bottom: calc(var(--space-24) + env(safe-area-inset-bottom));
+  bottom: calc(var(--space-24) + env(safe-area-inset-bottom) + 64px);
   margin: 0;
   font-size: var(--text-12);
-  color: var(--muted);
+  color: var(--ink-2);
 }
 
-/* 快门：一层会收拢的遮罩 + 六片旋转的叶片 */
+/* 快门：只盖住圆环那一块（在 .memory-stage 内部），背景保持可见 */
 .memory-shutter {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
 .memory-veil {
@@ -1756,11 +1737,11 @@ button {
   top: 50%;
   width: 0;
   height: 0;
-  margin-left: -120px;
-  margin-top: -300px;
-  border-left: 120px solid transparent;
-  border-right: 120px solid transparent;
-  border-bottom: 300px solid var(--scrim-strong);
+  margin-left: -70px;
+  margin-top: -150px;
+  border-left: 70px solid transparent;
+  border-right: 70px solid transparent;
+  border-bottom: 150px solid var(--scrim-strong);
   transform-origin: 50% 100%;
 }
 

@@ -3,6 +3,7 @@ import type { Entry } from '../core/types'
 import { fullText } from '../core/time'
 import { POLARITY_COLOR, POLARITY_LABEL, emotionById } from '../modules/mood/emotions'
 import { BlobImage } from './BlobImage'
+import { CloseButton } from './CloseButton'
 import { MoodFace } from './MoodFace'
 import { PhotoViewer } from './PhotoViewer'
 
@@ -193,9 +194,7 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
         {entries.length > 1 ? <p className="reader-hint">左右滑动翻页查看</p> : null}
       </div>
 
-      <button type="button" className="reader-close" aria-label="关闭" onClick={onClose}>
-        ×
-      </button>
+      <CloseButton onClick={onClose} />
 
       {photoIndex !== null ? (
         <PhotoViewer

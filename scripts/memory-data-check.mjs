@@ -76,6 +76,10 @@ await sleep(600)
 await evaluate(`[...document.querySelectorAll('.tile')].find((b) => b.textContent.includes('记忆')).click()`)
 await sleep(900)
 console.log('打开（应停在当前月）:', await evaluate(`document.querySelector('.memory-caption')?.innerText.replace(/\\n/g, ' / ')`))
+console.log('快门只覆盖圆环:', await evaluate(`(() => {
+  const box = (sel) => { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) }
+  return { viewport: innerWidth + 'x' + innerHeight, shutter: box('.memory-shutter') }
+})()`))
 await shot('mem-current')
 
 await evaluate(`document.querySelector('.memory-confirm').click()`)

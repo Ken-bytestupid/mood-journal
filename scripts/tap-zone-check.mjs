@@ -105,7 +105,7 @@ await tap(195, 150)
 console.log('点中间·卡片外（期望关闭）: 读器开着=', await open())
 
 await reopen()
-await evaluate(`document.querySelector('.reader-close').click()`)
+await evaluate(`document.querySelector('.overlay-close').click()`)
 await sleep(500)
 console.log('点右上角 ×（期望关闭）: 读器开着=', await open())
 

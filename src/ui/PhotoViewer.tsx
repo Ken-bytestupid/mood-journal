@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Photo } from '../core/types'
 import { BlobImage } from './BlobImage'
+import { CloseButton } from './CloseButton'
 
 interface PhotoViewerProps {
   photos: Photo[]
@@ -78,9 +79,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
         </div>
       </div>
 
-      <button type="button" className="photo-viewer-close" aria-label="关闭" onClick={onClose}>
-        ×
-      </button>
+      <CloseButton onClick={onClose} />
 
       {photos.length > 1 ? (
         <div className="photo-viewer-counter">
