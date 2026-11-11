@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isoWeek, isoWeekKey } from '../core/time'
 import type { Entry } from '../core/types'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { EntryReader } from '../ui/EntryReader'
+import { EntryRow } from '../ui/EntryRow'
 
 interface MemoryPageProps {
   entries: Entry[]
   onClose: () => void
+  onDelete?: (id: string) => Promise<void>
 }
 
 const MONTH_STEP = 360 / 12
 /** 手指转动多少度，圆盘才转多少度（越小越「钝」，越容易停在想要的格子上） */
 const SENSITIVITY = 0.55
 
-type Stage = 'month' | 'week'
+type Stage = 'month' | 'week' | 'list'
 type Phase = 'idle' | 'dragging' | 'busy'
 type Fade = '' | 'out' | 'in'
 
@@ -39,14 +43,17 @@ const easeIn = (t: number) => t * t
  * 合上时大环模糊淡出，重新打开时小环从模糊里浮现。
  * 目前只做到「选到周」，记录列表和详情后续复用现有组件接入。
  */
-export function MemoryPage({ entries, onClose }: MemoryPageProps) {
+export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const baseYear = useMemo(() => new Date().getFullYear(), [])
   const [stage, setStage] = useState<Stage>('month')
   const [phase, setPhase] = useState<Phase>('idle')
   const [fade, setFade] = useState<Fade>('')
-  const [spin, setSpin] = useState(0)
+  // 打开时指针就停在「现在」这个月（月份按逆时针拖动前进，所以初始 spin 取负）
+  const [spin, setSpin] = useState(() => -new Date().getMonth() * MONTH_STEP)
   const [weekSpin, setWeekSpin] = useState(0)
   const [shutter, setShutter] = useState(0)
+  const [readerIndex, setReaderIndex] = useState<number | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Entry | null>(null)
 
   const rootRef = useRef<HTMLDivElement>(null)
   const drag = useRef({ active: false, lastAngle: 0, moved: 0 })
@@ -94,6 +101,15 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
   const weekStep = weeks.length > 0 ? 360 / weeks.length : 360
   const weekSlots = Math.round(-weekSpin / weekStep)
   const weekIndex = weeks.length > 0 ? mod(weekSlots, weeks.length) : 0
+  const week = weeks[weekIndex]
+
+  // 这一周自己的记录（列表页用）
+  const weekEntries = useMemo(() => {
+    if (!week) return []
+    return entries
+      .filter((entry) => isoWeekKey(entry.createdAt) === week.key)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  }, [entries, week])
 
   const monthEnabled = useCallback(
     (index: number) => demoMode || byMonth.has(index),
@@ -162,13 +178,26 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
     setWeekSpin(-target * weekStep)
   }, [monthEnabled, monthSlots, snapSlot, stage, weekSlots, weekStep, weeks])
 
-  /** 点「选这个月」才换场到周环 */
+  /** 点「选这个月」才换场到周环；周环默认停在当前这一周 */
   const confirmMonth = () => {
     if (stage !== 'month') return
+    const nowKey = isoWeekKey(Date.now())
+    const current = weeks.findIndex((item) => item.key === nowKey)
     void transition(() => {
       setStage('week')
-      setWeekSpin(0)
+      setWeekSpin(current >= 0 ? -current * weekStep : 0)
     })
+  }
+
+  /** 点「看这一周」进入这一周的列表 */
+  const confirmWeek = () => {
+    if (stage !== 'week') return
+    void transition(() => setStage('list'))
+  }
+
+  const backToWeeks = () => {
+    if (stage !== 'list') return
+    void transition(() => setStage('week'))
   }
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -207,7 +236,6 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
   }
 
   const monthName = `${year} 年 ${monthIndex + 1} 月`
-  const week = weeks[weekIndex]
 
   return (
     <div
@@ -225,7 +253,7 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
 
       <div className="memory-year">{year}</div>
 
-      <div className="memory-stage">
+      <div className="memory-stage" hidden={stage === 'list'}>
         <div className="memory-pointer" aria-hidden="true" />
         {stage === 'month' ? (
           <div className="memory-ring" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
@@ -273,35 +301,88 @@ export function MemoryPage({ entries, onClose }: MemoryPageProps) {
         )}
       </div>
 
-      <div className="memory-caption">
-        {stage === 'month' ? (
-          <>
-            <strong>{monthName}</strong>
-            <span>{demoMode ? '演示模式：全部可选' : `${byMonth.get(monthIndex) ?? 0} 条记录`}</span>
-          </>
-        ) : (
-          <>
-            <strong>
+      {stage === 'list' ? (
+        <div className="memory-list" data-fade={fade}>
+          <div className="memory-list-head">
+            <span>
               {monthName} · 第 {week?.week ?? '—'} 周
-            </strong>
-            <span>{demoMode ? '演示模式：全部可选' : `${week ? (byWeek.get(week.key) ?? 0) : 0} 条记录`}</span>
-          </>
-        )}
-      </div>
-
-      {stage === 'month' ? (
-        <button type="button" className="memory-confirm" onClick={confirmMonth}>
-          选这个月
-        </button>
+            </span>
+            <button type="button" className="memory-back" onClick={backToWeeks}>
+              ↩ 回到圆环
+            </button>
+          </div>
+          {weekEntries.length === 0 ? (
+            <p className="memory-empty">这一周还没有记录</p>
+          ) : (
+            weekEntries.map((entry, index) => (
+              <EntryRow key={entry.id} entry={entry} onOpen={() => setReaderIndex(index)} />
+            ))
+          )}
+        </div>
       ) : (
-        <button type="button" className="memory-back" onClick={goBack} aria-label="回到月份">
-          ↩ 换个月份
-        </button>
+        <>
+          <div className="memory-caption">
+            {stage === 'month' ? (
+              <>
+                <strong>{monthName}</strong>
+                <span>{demoMode ? '演示模式：全部可选' : `${byMonth.get(monthIndex) ?? 0} 条记录`}</span>
+              </>
+            ) : (
+              <>
+                <strong>
+                  {monthName} · 第 {week?.week ?? '—'} 周
+                </strong>
+                <span>{demoMode ? '演示模式：全部可选' : `${week ? (byWeek.get(week.key) ?? 0) : 0} 条记录`}</span>
+              </>
+            )}
+          </div>
+
+          {stage === 'month' ? (
+            <button type="button" className="memory-confirm" onClick={confirmMonth}>
+              选这个月
+            </button>
+          ) : (
+            <div className="memory-actions">
+              <button type="button" className="memory-back" onClick={goBack} aria-label="回到月份">
+                ↩ 换个月份
+              </button>
+              <button type="button" className="memory-confirm" onClick={confirmWeek} disabled={!week?.enabled}>
+                看这一周
+              </button>
+            </div>
+          )}
+
+          <p className="memory-hint">
+            {stage === 'month' ? '在屏幕上滑动旋转 · 点「选这个月」确认' : '滑动挑选周 · 点「看这一周」翻记录'}
+          </p>
+        </>
       )}
 
-      <p className="memory-hint">
-        {stage === 'month' ? '在屏幕上滑动旋转 · 点「选这个月」确认' : '滑动挑选周 · 松开吸附'}
-      </p>
+      {readerIndex !== null && weekEntries[readerIndex] ? (
+        <EntryReader
+          entries={weekEntries}
+          index={readerIndex}
+          onIndexChange={setReaderIndex}
+          onClose={() => setReaderIndex(null)}
+          onDelete={(entry) => setPendingDelete(entry)}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="删除这条记录？"
+        message="删除后不能恢复，照片也会一起删掉。"
+        confirmLabel="删除"
+        danger
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const target = pendingDelete
+          setPendingDelete(null)
+          if (!target || !onDelete) return
+          setReaderIndex(null)
+          void onDelete(target.id)
+        }}
+      />
 
       <div className="memory-shutter" aria-hidden="true">
         <div

@@ -1491,6 +1491,15 @@ button {
   justify-content: center;
 }
 
+.memory-stage[hidden] {
+  display: none;
+}
+
+/* 列表阶段不需要左侧年份，避免和卡片打架 */
+.memory[data-stage='list'] .memory-year {
+  display: none;
+}
+
 /* 顶部指针：向下的三角 */
 .memory-pointer {
   position: absolute;
@@ -1620,6 +1629,60 @@ button {
   color: var(--bg);
   font-size: var(--text-13-5);
   font-weight: 600;
+}
+
+.memory-confirm:disabled {
+  opacity: 0.35;
+}
+
+/* 周环下方的两个按钮：返回 + 看这一周 */
+.memory-actions {
+  display: flex;
+  gap: var(--space-10);
+  align-items: center;
+}
+
+/* 一周的记录列表 */
+.memory-list {
+  width: min(420px, 100% - 32px);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--space-14);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-18);
+  transition:
+    filter 260ms var(--ease),
+    opacity 260ms var(--ease);
+}
+
+.memory-list[data-fade='out'] {
+  filter: blur(10px);
+  opacity: 0;
+}
+
+.memory-list[data-fade='in'] {
+  filter: blur(10px);
+  opacity: 0.2;
+  transition: none;
+}
+
+.memory-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  margin-bottom: var(--space-10);
+  font-size: var(--text-13);
+  color: var(--muted);
+}
+
+.memory-empty {
+  margin: 0;
+  padding: var(--space-20) 0;
+  text-align: center;
+  font-size: var(--text-13);
+  color: var(--muted);
 }
 
 .memory-hint {

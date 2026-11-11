@@ -6,16 +6,14 @@ import {
   type StorageBackend,
   type StorageStatus,
 } from '../core/durability'
-import { clockText, dateText, dayKey, groupByDay, startOfWeek, streakDays, weekDayLabel } from '../core/time'
+import { dateText, dayKey, groupByDay, startOfWeek, streakDays, weekDayLabel } from '../core/time'
 import type { Entry, Polarity } from '../core/types'
 import { buildBackupJSON } from '../modules/entries/store'
-import { POLARITY_COLOR, emotionById } from '../modules/mood/emotions'
-import { BlobImage } from '../ui/BlobImage'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EntryReader } from '../ui/EntryReader'
+import { EntryRow } from '../ui/EntryRow'
 import { ErrorBoundary } from '../ui/ErrorBoundary'
 import { MemoryPage } from './MemoryPage'
-import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
 import { useToast } from '../ui/Toast'
 
@@ -47,35 +45,7 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86_400_000)} 天前`
 }
 
-/** 列表里的一行。今天 / 本周 共用同一套外观。 */
-function EntryRow({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
-  const emotion = emotionById(entry.emotionId)
-  return (
-    <button type="button" className="entry" onClick={onOpen}>
-      <span className="entry-mood" style={{ color: POLARITY_COLOR[entry.polarity] }}>
-        {emotion ? (
-          <span className="entry-emoji">{emotion.emoji}</span>
-        ) : (
-          <MoodFace polarity={entry.polarity} className="entry-face" />
-        )}
-      </span>
-      <span className="entry-main">
-        <span className="entry-top">
-          <span className="entry-time">{clockText(entry.createdAt)}</span>
-          {entry.title ? <span className="entry-title">{entry.title}</span> : null}
-        </span>
-        {entry.text ? <span className="entry-text">{entry.text}</span> : null}
-        {entry.photos.length > 0 ? (
-          <span className="entry-photos">
-            {entry.photos.slice(0, 3).map((photo, index) => (
-              <BlobImage key={index} blob={photo.thumb} alt={`照片 ${index + 1}`} />
-            ))}
-          </span>
-        ) : null}
-      </span>
-    </button>
-  )
-}
+/** 列表里的一行。今天 / 本周 / 记忆 共用同一套外观。 */
 
 /**
  * 我的页：只看「今天」的记录，统计收进按钮和副标题里。
@@ -434,7 +404,9 @@ export function MinePage({ entries, loading, backend, onDelete, onClear, onImpor
       </Sheet>
 
       <ErrorBoundary label="记忆">
-        {memoryOpen ? <MemoryPage entries={entries} onClose={() => setMemoryOpen(false)} /> : null}
+        {memoryOpen ? (
+          <MemoryPage entries={entries} onClose={() => setMemoryOpen(false)} onDelete={onDelete} />
+        ) : null}
       </ErrorBoundary>
 
       <ConfirmDialog

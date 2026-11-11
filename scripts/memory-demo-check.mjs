@@ -58,6 +58,8 @@ const state = () =>
       })() : null,
       confirm: !!document.querySelector('.memory-confirm'),
       back: !!document.querySelector('.memory-back'),
+      list: !!document.querySelector('.memory-list'),
+      rows: document.querySelectorAll('.memory-list .entry').length,
     }
   })()`)
 
@@ -117,8 +119,19 @@ await dragArc(-40)
 await sleep(700)
 console.log('转周环:', JSON.stringify(await state()))
 
-// 回退
-await evaluate(`document.querySelector('.memory-back').click()`)
+// 「看这一周」进入列表
+await evaluate(`document.querySelector('.memory-confirm').click()`)
+await sleep(1500)
+console.log('看这一周:', JSON.stringify(await state()))
+await shot('mem-list')
+
+// 列表回到圆环
+await evaluate(`[...document.querySelectorAll('.memory-back')].find((b) => b.textContent.includes('回到圆环')).click()`)
+await sleep(1500)
+console.log('回列表外:', JSON.stringify(await state()))
+
+// 回退到月份
+await evaluate(`[...document.querySelectorAll('.memory-back')].find((b) => b.textContent.includes('换个月份')).click()`)
 await sleep(1500)
 console.log('回退:', JSON.stringify(await state()))
 
