@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { isoWeek, isoWeekKey } from '../core/time'
+import { dateText, groupByDay, isoWeek, isoWeekKey, weekDayLabel } from '../core/time'
 import type { Entry } from '../core/types'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EntryReader } from '../ui/EntryReader'
@@ -54,6 +54,19 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const [shutter, setShutter] = useState(0)
   const [readerIndex, setReaderIndex] = useState<number | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Entry | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const noticeTimer = useRef<number | null>(null)
+
+  /** 屏幕中央的短提示，1.6 秒后自动消失 */
+  const showNotice = useCallback((message: string) => {
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current)
+    setNotice(message)
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 1600)
+  }, [])
+
+  useEffect(() => () => {
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current)
+  }, [])
 
   const rootRef = useRef<HTMLDivElement>(null)
   const drag = useRef({ active: false, lastAngle: 0, moved: 0 })
@@ -111,21 +124,15 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
       .sort((a, b) => b.createdAt - a.createdAt)
   }, [entries, week])
 
+  /** 列表按天分组，带星期标题 */
+  const weekGroups = useMemo(() => groupByDay(weekEntries), [weekEntries])
+
   const monthEnabled = useCallback(
     (index: number) => demoMode || byMonth.has(index),
     [byMonth, demoMode],
   )
-
-  /** 吸附：落在没有记录的格子上时，找最近的可用格子 */
-  const snapSlot = useCallback((slots: number, count: number, enabled: (index: number) => boolean) => {
-    if (count === 0) return slots
-    if (enabled(mod(slots, count))) return slots
-    for (let step = 1; step <= count; step += 1) {
-      if (enabled(mod(slots + step, count))) return slots + step
-      if (enabled(mod(slots - step, count))) return slots - step
-    }
-    return slots
-  }, [])
+  const monthHasRecords = monthEnabled(monthIndex)
+  const weekHasRecords = week?.enabled ?? false
 
   const animateShutter = useCallback((to: number, duration: number) => {
     return new Promise<void>((resolve) => {
@@ -161,7 +168,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     [animateShutter],
   )
 
-  /** 松手只做吸附；真正「选中」靠下面的按钮 */
+  /** 松手吸附到最近的一格（每一格都停得住，没记录也照停） */
   const release = useCallback(() => {
     if (!drag.current.active) return
     drag.current.active = false
@@ -169,18 +176,20 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     if (phaseRef.current === 'busy') return
 
     if (stage === 'month') {
-      const target = snapSlot(monthSlots, 12, monthEnabled)
-      setSpin(-target * MONTH_STEP)
+      setSpin(-Math.round(monthSlots) * MONTH_STEP)
       return
     }
 
-    const target = snapSlot(weekSlots, weeks.length, (index) => weeks[index]?.enabled ?? false)
-    setWeekSpin(-target * weekStep)
-  }, [monthEnabled, monthSlots, snapSlot, stage, weekSlots, weekStep, weeks])
+    setWeekSpin(-Math.round(weekSlots) * weekStep)
+  }, [monthSlots, stage, weekSlots, weekStep])
 
   /** 点「选这个月」才换场到周环；周环默认停在当前这一周 */
   const confirmMonth = () => {
     if (stage !== 'month') return
+    if (!monthHasRecords) {
+      showNotice('这个月没有记录，到有记录的月份看看吧')
+      return
+    }
     const nowKey = isoWeekKey(Date.now())
     const current = weeks.findIndex((item) => item.key === nowKey)
     void transition(() => {
@@ -192,6 +201,10 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   /** 点「看这一周」进入这一周的列表 */
   const confirmWeek = () => {
     if (stage !== 'week') return
+    if (!weekHasRecords) {
+      showNotice('这一周没有记录，换个星期看看吧')
+      return
+    }
     void transition(() => setStage('list'))
   }
 
@@ -311,11 +324,23 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
               ↩ 回到圆环
             </button>
           </div>
-          {weekEntries.length === 0 ? (
+          {weekGroups.length === 0 ? (
             <p className="memory-empty">这一周还没有记录</p>
           ) : (
-            weekEntries.map((entry, index) => (
-              <EntryRow key={entry.id} entry={entry} onOpen={() => setReaderIndex(index)} />
+            weekGroups.map((group) => (
+              <section className="day-group" key={group.key}>
+                <div className="day-head">
+                  <span className="day-label">{weekDayLabel(group.ts)}</span>
+                  <span className="day-date">{dateText(group.ts)}</span>
+                </div>
+                {group.items.map((entry) => (
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    onOpen={() => setReaderIndex(weekEntries.indexOf(entry))}
+                  />
+                ))}
+              </section>
             ))
           )}
         </div>
@@ -338,16 +363,24 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
           </div>
 
           {stage === 'month' ? (
-            <button type="button" className="memory-confirm" onClick={confirmMonth}>
-              选这个月
+            <button
+              type="button"
+              className={monthHasRecords ? 'memory-confirm' : 'memory-confirm is-empty'}
+              onClick={confirmMonth}
+            >
+              {monthHasRecords ? '选这个月' : '本月无记录'}
             </button>
           ) : (
             <div className="memory-actions">
               <button type="button" className="memory-back" onClick={goBack} aria-label="回到月份">
                 ↩ 换个月份
               </button>
-              <button type="button" className="memory-confirm" onClick={confirmWeek} disabled={!week?.enabled}>
-                看这一周
+              <button
+                type="button"
+                className={weekHasRecords ? 'memory-confirm' : 'memory-confirm is-empty'}
+                onClick={confirmWeek}
+              >
+                {weekHasRecords ? '看这一周' : '本周无记录'}
               </button>
             </div>
           )}
@@ -357,6 +390,12 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
           </p>
         </>
       )}
+
+      {notice ? (
+        <div className="memory-notice" role="status">
+          {notice}
+        </div>
+      ) : null}
 
       {readerIndex !== null && weekEntries[readerIndex] ? (
         <EntryReader

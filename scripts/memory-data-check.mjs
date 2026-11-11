@@ -104,5 +104,43 @@ console.log('取消后行数:', await evaluate(`document.querySelectorAll('.memo
 await evaluate(`document.querySelector('.reader-close')?.click()`)
 await sleep(500)
 console.log('关闭阅读器后行数:', await evaluate(`document.querySelectorAll('.memory-list .entry').length`))
+console.log('按天分组的标题:', JSON.stringify(await evaluate(`[...document.querySelectorAll('.memory-list .day-head')].map((n) => n.innerText.replace(/\\n/g, ' '))`)))
+
+// 回到圆环 → 回月份 → 转到一个没有记录的月份
+await evaluate(`[...document.querySelectorAll('.memory-back')].find((b) => b.textContent.includes('回到圆环')).click()`)
+await sleep(1400)
+await evaluate(`[...document.querySelectorAll('.memory-back')].find((b) => b.textContent.includes('换个月份')).click()`)
+await sleep(1400)
+
+const cx = 195
+const cy = 422
+const point = (deg) => {
+  const rad = (deg * Math.PI) / 180
+  return { x: cx + 180 * Math.cos(rad), y: cy + 180 * Math.sin(rad) }
+}
+const dragArc = async (degrees) => {
+  const start = point(-90)
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...start, radiusX: 6, radiusY: 6, force: 1, id: 1 }] })
+  for (let i = 1; i <= 20; i += 1) {
+    const p = point(-90 + (degrees * i) / 20)
+    await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...p, radiusX: 6, radiusY: 6, force: 1, id: 1 }] })
+    await sleep(16)
+  }
+  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+}
+
+await dragArc(-420)
+await sleep(700)
+console.log('停在没有记录的月份:', JSON.stringify({
+  caption: await evaluate(`document.querySelector('.memory-caption')?.innerText.replace(/\\n/g, ' / ')`),
+  button: await evaluate(`document.querySelector('.memory-confirm')?.textContent`),
+}))
+
+await evaluate(`document.querySelector('.memory-confirm').click()`)
+await sleep(200)
+console.log('点按钮后的提示:', await evaluate(`document.querySelector('.memory-notice')?.textContent ?? null`))
+await shot('mem-notice')
+await sleep(1900)
+console.log('2 秒后提示是否消失:', await evaluate(`document.querySelector('.memory-notice') === null`))
 
 ws.close()

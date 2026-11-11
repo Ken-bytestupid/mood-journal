@@ -1635,6 +1635,43 @@ button {
   opacity: 0.35;
 }
 
+/* 没有记录时按钮变成提示态：仍是可点的，点了弹一句提醒 */
+.memory-confirm.is-empty {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* 屏幕中央的短提示 */
+.memory-notice {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 96;
+  max-width: 76%;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-14);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--text-13);
+  line-height: 1.5;
+  text-align: center;
+  animation: memory-notice-in 180ms var(--ease);
+  pointer-events: none;
+}
+
+@keyframes memory-notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
 /* 周环下方的两个按钮：返回 + 看这一周 */
 .memory-actions {
   display: flex;
