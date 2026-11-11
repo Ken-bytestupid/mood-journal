@@ -13,6 +13,7 @@ import { POLARITY_COLOR, emotionById } from '../modules/mood/emotions'
 import { BlobImage } from '../ui/BlobImage'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EntryReader } from '../ui/EntryReader'
+import { ErrorBoundary } from '../ui/ErrorBoundary'
 import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
 import { useToast } from '../ui/Toast'
@@ -238,28 +239,30 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
         </p>
       </header>
 
-      <section className="mood-strip">
-        <div className="mood-strip-head">
-          <span>本周心情</span>
-          <span>
-            积极 {weekCounts.positive} · 消极 {weekCounts.negative} · 只是记录 {weekCounts.plain}
-          </span>
-        </div>
-        <div className="mood-bar">
-          <span
-            style={{
-              width: classified === 0 ? '0%' : `${(weekCounts.positive / classified) * 100}%`,
-              background: 'var(--pos)',
-            }}
-          />
-          <span
-            style={{
-              width: classified === 0 ? '0%' : `${(weekCounts.negative / classified) * 100}%`,
-              background: 'var(--neg)',
-            }}
-          />
-        </div>
-      </section>
+      <ErrorBoundary label="本周心情">
+        <section className="mood-strip">
+          <div className="mood-strip-head">
+            <span>本周心情</span>
+            <span>
+              积极 {weekCounts.positive} · 消极 {weekCounts.negative} · 只是记录 {weekCounts.plain}
+            </span>
+          </div>
+          <div className="mood-bar">
+            <span
+              style={{
+                width: classified === 0 ? '0%' : `${(weekCounts.positive / classified) * 100}%`,
+                background: 'var(--pos)',
+              }}
+            />
+            <span
+              style={{
+                width: classified === 0 ? '0%' : `${(weekCounts.negative / classified) * 100}%`,
+                background: 'var(--neg)',
+              }}
+            />
+          </div>
+        </section>
+      </ErrorBoundary>
 
       {status && status.mirrorCount > 0 && entries.length === 0 ? (
         <div className="recover">
@@ -270,19 +273,21 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
         </div>
       ) : null}
 
-      <section className="today-block">
-        <div className="day-head">
-          <span className="day-label">今天</span>
-          <span className="day-date">{dateText(Date.now())}</span>
-        </div>
-        {todayEntries.length === 0 ? (
-          <p className="today-empty">{loading ? '正在读取…' : '今天还没有记录，去「记录」写一条吧'}</p>
-        ) : (
-          todayEntries.map((entry) => (
-            <EntryRow key={entry.id} entry={entry} onOpen={() => openReader(todayEntries, todayEntries.indexOf(entry), 'today')} />
-          ))
-        )}
-      </section>
+      <ErrorBoundary label="今天的记录">
+        <section className="today-block">
+          <div className="day-head">
+            <span className="day-label">今天</span>
+            <span className="day-date">{dateText(Date.now())}</span>
+          </div>
+          {todayEntries.length === 0 ? (
+            <p className="today-empty">{loading ? '正在读取…' : '今天还没有记录，去「记录」写一条吧'}</p>
+          ) : (
+            todayEntries.map((entry) => (
+              <EntryRow key={entry.id} entry={entry} onOpen={() => openReader(todayEntries, todayEntries.indexOf(entry), 'today')} />
+            ))
+          )}
+        </section>
+      </ErrorBoundary>
 
       <div className="tile-row">
         <button type="button" className="tile" onClick={() => setWeekOpen(true)}>
@@ -312,36 +317,40 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
           </button>
         }
       >
-        {weekGroups.length === 0 ? (
-          <p className="sheet-empty">本周还没有记录</p>
-        ) : (
-          weekGroups.map((group) => (
-            <section className="day-group" key={group.key}>
-              <div className="day-head">
-                <span className="day-label">{weekDayLabel(group.ts)}</span>
-                <span className="day-date">{dateText(group.ts)}</span>
-              </div>
-              {group.items.map((entry) => (
-                <EntryRow
-                  key={entry.id}
-                  entry={entry}
-                  onOpen={() => openReader(weekEntries, weekEntries.indexOf(entry), 'week')}
-                />
-              ))}
-            </section>
-          ))
-        )}
+        <ErrorBoundary label="本周记录">
+          {weekGroups.length === 0 ? (
+            <p className="sheet-empty">本周还没有记录</p>
+          ) : (
+            weekGroups.map((group) => (
+              <section className="day-group" key={group.key}>
+                <div className="day-head">
+                  <span className="day-label">{weekDayLabel(group.ts)}</span>
+                  <span className="day-date">{dateText(group.ts)}</span>
+                </div>
+                {group.items.map((entry) => (
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    onOpen={() => openReader(weekEntries, weekEntries.indexOf(entry), 'week')}
+                  />
+                ))}
+              </section>
+            ))
+          )}
+        </ErrorBoundary>
       </Sheet>
 
-      {reader ? (
-        <EntryReader
-          entries={reader.items}
-          index={reader.index}
-          onIndexChange={(index) => setReader((current) => (current ? { ...current, index } : current))}
-          onClose={closeReader}
-          onDelete={deleteFromReader}
-        />
-      ) : null}
+      <ErrorBoundary label="记录详情">
+        {reader ? (
+          <EntryReader
+            entries={reader.items}
+            index={reader.index}
+            onIndexChange={(index) => setReader((current) => (current ? { ...current, index } : current))}
+            onClose={closeReader}
+            onDelete={deleteFromReader}
+          />
+        ) : null}
+      </ErrorBoundary>
 
       <Sheet
         open={generalOpen}
@@ -353,6 +362,7 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
           </button>
         }
       >
+        <ErrorBoundary label="存储状态">
         <section className="storage-card">
           <div className="storage-head">
             <span>数据与存储</span>
@@ -408,22 +418,25 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
               : '还没有拿到持久化承诺：把应用「添加到主屏幕」后，系统才会长期保留这些记录。'}
           </p>
         </section>
+        </ErrorBoundary>
 
-        <section className="data-card">
-          <button type="button" className="data-row" onClick={exportBackup}>
-            导出备份
-            <small>存成 JSON 文件</small>
-          </button>
-          <button type="button" className="data-row" onClick={() => fileRef.current?.click()}>
-            导入备份
-            <small>合并，不会覆盖已有</small>
-          </button>
-          <button type="button" className="data-row danger" onClick={clearAll}>
-            清空全部记录
-            <small>不可撤销</small>
-          </button>
-          <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importBackupFile} />
-        </section>
+        <ErrorBoundary label="数据与存储">
+          <section className="data-card">
+            <button type="button" className="data-row" onClick={exportBackup}>
+              导出备份
+              <small>存成 JSON 文件</small>
+            </button>
+            <button type="button" className="data-row" onClick={() => fileRef.current?.click()}>
+              导入备份
+              <small>合并，不会覆盖已有</small>
+            </button>
+            <button type="button" className="data-row danger" onClick={clearAll}>
+              清空全部记录
+              <small>不可撤销</small>
+            </button>
+            <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importBackupFile} />
+          </section>
+        </ErrorBoundary>
       </Sheet>
 
       <ConfirmDialog

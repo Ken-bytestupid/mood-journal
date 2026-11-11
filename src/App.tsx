@@ -4,6 +4,7 @@ import type { EntryInput } from './core/types'
 import { useEntries } from './modules/entries/useEntries'
 import { MinePage } from './pages/MinePage'
 import { RecordPage } from './pages/RecordPage'
+import { ErrorBoundary } from './ui/ErrorBoundary'
 
 type Tab = 'record' | 'mine'
 
@@ -21,18 +22,27 @@ export default function App() {
   return (
     <div className="app">
       <main className="main">
-        {/* 两个页面都保持挂载：切到「我的」再回来，正在写的内容不会丢 */}
-        <RecordPage onSave={handleSave} hidden={tab !== 'record'} />
-        <MinePage
-          entries={entries}
-          loading={loading}
-          hidden={tab !== 'mine'}
-          backend={backend}
-          onDelete={remove}
-          onClear={clear}
-          onImport={importFrom}
-          onRestore={restore}
-        />
+        {/* 两个页面都保持挂载：切到「我的」再回来，正在写的内容不会丢。
+            各自套一层 ErrorBoundary：一页崩了不会带走另一页和底部导航。 */}
+        <div className="page-slot" hidden={tab !== 'record'}>
+          <ErrorBoundary label="记录页">
+            <RecordPage onSave={handleSave} hidden={false} />
+          </ErrorBoundary>
+        </div>
+        <div className="page-slot" hidden={tab !== 'mine'}>
+          <ErrorBoundary label="「我的」页面">
+            <MinePage
+              entries={entries}
+              loading={loading}
+              hidden={false}
+              backend={backend}
+              onDelete={remove}
+              onClear={clear}
+              onImport={importFrom}
+              onRestore={restore}
+            />
+          </ErrorBoundary>
+        </div>
       </main>
 
       <nav className="tabbar" role="tablist" aria-label="主导航">

@@ -1022,8 +1022,51 @@ button {
   transform: translate(-50%, 0);
 }
 
-/* ============================================================ 二次确认 */
+/* ============================================================ 区块兜底 */
 
+.error-fallback {
+  margin: 12px 14px;
+  padding: 14px 14px 12px;
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  border-radius: 14px;
+}
+
+.error-fallback-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.error-fallback-text {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.error-fallback-btn {
+  margin-top: 10px;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 12.5px;
+}
+
+/* 每个页面外面的一层壳，负责隐藏/显示，让崩溃的页面不挤占另一个 */
+.page-slot {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-slot[hidden] {
+  display: none;
+}
+
+/* ============================================================ 二次确认 */
 .confirm-root {
   position: fixed;
   inset: 0;
