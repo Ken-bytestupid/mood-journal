@@ -11,6 +11,7 @@ import type { Entry, Polarity } from '../core/types'
 import { buildBackupJSON } from '../modules/entries/store'
 import { POLARITY_COLOR, emotionById } from '../modules/mood/emotions'
 import { BlobImage } from '../ui/BlobImage'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EntryReader } from '../ui/EntryReader'
 import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
@@ -76,6 +77,9 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
   const [generalOpen, setGeneralOpen] = useState(false)
   const [weekOpen, setWeekOpen] = useState(false)
   const [reader, setReader] = useState<{ items: Entry[]; index: number; origin: 'today' | 'week' } | null>(null)
+  const [confirm, setConfirm] = useState<
+    { kind: 'delete'; entry: Entry } | { kind: 'clear' } | { kind: 'restore' } | null
+  >(null)
 
   useEffect(() => {
     let alive = true
@@ -133,11 +137,8 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     if (origin === 'week') setWeekOpen(true)
   }
 
-  const deleteFromReader = async (entry: Entry) => {
-    if (!window.confirm('删除这条记录？')) return
-    await onDelete(entry.id)
-    closeReader()
-    toast('已删除')
+  const deleteFromReader = (entry: Entry) => {
+    setConfirm({ kind: 'delete', entry })
   }
 
   /** 导出优先走系统分享（iOS 上可以直接存进「文件」App / iCloud 云盘），不支持再退回下载。 */
@@ -179,11 +180,8 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     toast('已导出备份文件')
   }
 
-  const restoreMirror = async () => {
-    if (!window.confirm('从本机文字镜像恢复？图片不会回来，需要重新添加。')) return
-    const added = await onRestore()
-    await refreshStatus()
-    toast(added > 0 ? `已恢复 ${added} 条记录` : '没有可恢复的记录')
+  const restoreMirror = () => {
+    setConfirm({ kind: 'restore' })
   }
 
   const importBackupFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -200,15 +198,35 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     }
   }
 
-  const clearAll = async () => {
+  const clearAll = () => {
     if (entries.length === 0) {
       toast('现在就是空的')
       return
     }
-    if (!window.confirm('清空全部记录？建议先导出备份，这一步不能撤销。')) return
-    await onClear()
+    setConfirm({ kind: 'clear' })
+  }
+
+  /** 二次确认框里点「删除 / 清空 / 恢复」之后才真正执行。 */
+  const runConfirmed = async () => {
+    if (!confirm) return
+    const action = confirm
+    setConfirm(null)
+
+    if (action.kind === 'delete') {
+      await onDelete(action.entry.id)
+      closeReader()
+      toast('已删除')
+      return
+    }
+    if (action.kind === 'clear') {
+      await onClear()
+      await refreshStatus()
+      toast('已清空')
+      return
+    }
+    const added = await onRestore()
     await refreshStatus()
-    toast('已清空')
+    toast(added > 0 ? `已恢复 ${added} 条记录` : '没有可恢复的记录')
   }
 
   return (
@@ -407,6 +425,28 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importBackupFile} />
         </section>
       </Sheet>
+
+      <ConfirmDialog
+        open={confirm !== null}
+        title={
+          confirm?.kind === 'delete'
+            ? '删除这条记录？'
+            : confirm?.kind === 'clear'
+              ? '清空全部记录？'
+              : '从文字镜像恢复？'
+        }
+        message={
+          confirm?.kind === 'delete'
+            ? '删除后不能恢复，照片也会一起删掉。'
+            : confirm?.kind === 'clear'
+              ? '所有记录都会被删除，建议先导出备份。这一步不能撤销。'
+              : '只会恢复文字，图片需要重新添加。'
+        }
+        confirmLabel={confirm?.kind === 'clear' ? '清空' : confirm?.kind === 'delete' ? '删除' : '恢复'}
+        danger={confirm?.kind !== 'restore'}
+        onCancel={() => setConfirm(null)}
+        onConfirm={runConfirmed}
+      />
     </div>
   )
 }
