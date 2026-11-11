@@ -68,6 +68,26 @@ export interface DayGroup<T> {
   items: T[]
 }
 
+/**
+ * ISO 周编号（周一为一周开始，跨年的那一周归入它多数天数所在的年份）。
+ * 「记忆」按全年第几周显示，就是用这个编号。
+ */
+export function isoWeek(ts: number): { year: number; week: number } {
+  const date = new Date(ts)
+  const utc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = utc.getUTCDay() || 7
+  utc.setUTCDate(utc.getUTCDate() + 4 - day)
+  const yearStart = Date.UTC(utc.getUTCFullYear(), 0, 1)
+  const week = Math.ceil(((utc.getTime() - yearStart) / DAY_MS + 1) / 7)
+  return { year: utc.getUTCFullYear(), week }
+}
+
+/** 例如 2026-45，用来给周分组/查表 */
+export function isoWeekKey(ts: number): string {
+  const { year, week } = isoWeek(ts)
+  return `${year}-${week}`
+}
+
 /** 按天倒序分组，组内也按时间倒序。 */
 export function groupByDay<T extends { createdAt: number }>(items: T[]): DayGroup<T>[] {
   const map = new Map<string, DayGroup<T>>()

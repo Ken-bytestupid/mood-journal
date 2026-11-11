@@ -14,6 +14,7 @@ import { BlobImage } from '../ui/BlobImage'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { EntryReader } from '../ui/EntryReader'
 import { ErrorBoundary } from '../ui/ErrorBoundary'
+import { MemoryPage } from './MemoryPage'
 import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
 import { useToast } from '../ui/Toast'
@@ -86,6 +87,7 @@ export function MinePage({ entries, loading, backend, onDelete, onClear, onImpor
   const [status, setStatus] = useState<StorageStatus | null>(null)
   const [generalOpen, setGeneralOpen] = useState(false)
   const [weekOpen, setWeekOpen] = useState(false)
+  const [memoryOpen, setMemoryOpen] = useState(false)
   const [reader, setReader] = useState<{ items: Entry[]; index: number; origin: 'today' | 'week' } | null>(null)
   const [confirm, setConfirm] = useState<
     { kind: 'delete'; entry: Entry } | { kind: 'clear' } | { kind: 'restore' } | null
@@ -299,7 +301,7 @@ export function MinePage({ entries, loading, backend, onDelete, onClear, onImpor
           <span className="tile-title">本周</span>
           <span className="tile-count">{weekEntries.length} 条</span>
         </button>
-        <button type="button" className="tile" onClick={() => toast('「记忆」还在做，先用「本周」翻翻看')}>
+        <button type="button" className="tile" onClick={() => setMemoryOpen(true)}>
           <span className="tile-title">记忆</span>
           <span className="tile-count">{entries.length} 条</span>
         </button>
@@ -430,6 +432,10 @@ export function MinePage({ entries, loading, backend, onDelete, onClear, onImpor
           </section>
         </ErrorBoundary>
       </Sheet>
+
+      <ErrorBoundary label="记忆">
+        {memoryOpen ? <MemoryPage entries={entries} onClose={() => setMemoryOpen(false)} /> : null}
+      </ErrorBoundary>
 
       <ConfirmDialog
         open={confirm !== null}

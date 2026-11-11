@@ -1441,6 +1441,219 @@ button {
   }
 }
 
+/* ============================================================ 记忆（最小演示） */
+
+.memory {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-18);
+  background: var(--bg);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+.memory-close {
+  position: absolute;
+  top: calc(var(--space-12) + env(safe-area-inset-top));
+  right: var(--space-14);
+  z-index: 3;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--text-20);
+  line-height: 1;
+}
+
+.memory-year {
+  position: absolute;
+  left: var(--space-14);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--text-19);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.memory-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 顶部指针：向下的三角 */
+.memory-pointer {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 12px solid var(--ink);
+}
+
+.memory-ring {
+  position: relative;
+  width: 268px;
+  height: 268px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  transition:
+    filter 260ms var(--ease),
+    opacity 260ms var(--ease),
+    transform 320ms var(--ease);
+}
+
+.memory-ring.small {
+  width: 200px;
+  height: 200px;
+}
+
+/* 换场：大环模糊淡出，小环从模糊里浮现 */
+.memory-ring[data-fade='out'] {
+  filter: blur(10px);
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.memory-ring[data-fade='in'] {
+  filter: blur(10px);
+  opacity: 0.2;
+  transform: scale(1.06);
+  transition: none;
+}
+
+.memory-ring-track {
+  position: absolute;
+  inset: 0;
+  transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.memory-ring[data-dragging='true'] .memory-ring-track {
+  transition: none;
+}
+
+.memory-item {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-15);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  border-radius: 50%;
+  transition:
+    color 160ms var(--ease),
+    background-color 160ms var(--ease);
+}
+
+.memory-item[data-disabled='true'] {
+  color: var(--muted);
+  opacity: 0.32;
+}
+
+.memory-item[data-active='true'] {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--surface-2);
+}
+
+.memory-hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46%;
+  height: 46%;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.memory-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-13);
+  color: var(--muted);
+  text-align: center;
+}
+
+.memory-caption strong {
+  font-size: var(--text-16);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.memory-back {
+  height: 34px;
+  padding: 0 var(--space-14);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-12-5);
+  color: var(--ink-2);
+}
+
+.memory-hint {
+  position: absolute;
+  bottom: calc(var(--space-24) + env(safe-area-inset-bottom));
+  margin: 0;
+  font-size: var(--text-12);
+  color: var(--muted);
+}
+
+/* 快门：一层会收拢的遮罩 + 六片旋转的叶片 */
+.memory-shutter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.memory-veil {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim-strong);
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 0 var(--hole), #000 var(--hole));
+  mask-image: radial-gradient(circle at 50% 50%, transparent 0 var(--hole), #000 var(--hole));
+}
+
+.memory-blades {
+  position: absolute;
+  inset: 0;
+}
+
+.memory-blades span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -120px;
+  margin-top: -300px;
+  border-left: 120px solid transparent;
+  border-right: 120px solid transparent;
+  border-bottom: 300px solid var(--scrim-strong);
+  transform-origin: 50% 100%;
+}
+
 /* ============================================================ 动画 */
 
 @keyframes pop-in {
