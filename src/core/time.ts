@@ -3,7 +3,7 @@
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 const DAY_MS = 86_400_000
 
-export function pad2(n: number): string {
+function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
@@ -30,23 +30,14 @@ export function dayKey(ts: number): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
 }
 
-export function startOfDay(ts: number): number {
+function startOfDay(ts: number): number {
   const d = new Date(ts)
   d.setHours(0, 0, 0, 0)
   return d.getTime()
 }
 
-/** 今天 / 昨天 / 3 天前 / 10月20日 */
-export function dayLabel(ts: number, now = Date.now()): string {
-  const diff = Math.round((startOfDay(now) - startOfDay(ts)) / DAY_MS)
-  if (diff === 0) return '今天'
-  if (diff === 1) return '昨天'
-  if (diff > 1 && diff < 7) return `${diff} 天前`
-  return dateText(ts)
-}
-
 /** 10月31日 周五 */
-export function dayTitle(ts: number): string {
+function dayTitle(ts: number): string {
   return `${dateText(ts)} ${weekText(ts)}`
 }
 
@@ -72,19 +63,19 @@ export function fullText(ts: number): string {
 
 export interface DayGroup<T> {
   key: string
+  /** 当天第一笔记录的时间，用来排序和显示日期 */
   ts: number
-  label: string
   items: T[]
 }
 
 /** 按天倒序分组，组内也按时间倒序。 */
-export function groupByDay<T extends { createdAt: number }>(items: T[], now = Date.now()): DayGroup<T>[] {
+export function groupByDay<T extends { createdAt: number }>(items: T[]): DayGroup<T>[] {
   const map = new Map<string, DayGroup<T>>()
   for (const item of items) {
     const key = dayKey(item.createdAt)
     const group = map.get(key)
     if (group) group.items.push(item)
-    else map.set(key, { key, ts: item.createdAt, label: dayLabel(item.createdAt, now), items: [item] })
+    else map.set(key, { key, ts: item.createdAt, items: [item] })
   }
   return [...map.values()].sort((a, b) => b.ts - a.ts)
 }

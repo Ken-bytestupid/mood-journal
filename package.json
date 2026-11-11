@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 5181",
     "typecheck": "tsc --noEmit",
-    "deploy": "pnpm build && wrangler pages deploy dist --project-name=suiji"
+    "check:css": "node scripts/dead-css.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

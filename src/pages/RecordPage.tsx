@@ -50,11 +50,10 @@ function saveDraft(draft: Draft): void {
 
 interface RecordPageProps {
   onSave: (input: EntryInput) => Promise<Entry>
-  hidden: boolean
 }
 
 /** 记录页：打开就能写。心情只问「积极 / 消极 / 只是记录」，别的都放到旁边。 */
-export function RecordPage({ onSave, hidden }: RecordPageProps) {
+export function RecordPage({ onSave }: RecordPageProps) {
   const toast = useToast()
   const [draft] = useState(loadDraft)
   const [title, setTitle] = useState(draft.title)
@@ -160,7 +159,7 @@ export function RecordPage({ onSave, hidden }: RecordPageProps) {
   }, [emotionId, onSave, photos, polarity, processing, saving, text, title, toast])
 
   return (
-    <div className="page record" hidden={hidden}>
+    <div className="page record">
       <header className="topbar">
         <button
           type="button"

@@ -26,7 +26,7 @@ export default function App() {
             各自套一层 ErrorBoundary：一页崩了不会带走另一页和底部导航。 */}
         <div className="page-slot" hidden={tab !== 'record'}>
           <ErrorBoundary label="记录页">
-            <RecordPage onSave={handleSave} hidden={false} />
+            <RecordPage onSave={handleSave} />
           </ErrorBoundary>
         </div>
         <div className="page-slot" hidden={tab !== 'mine'}>
@@ -34,7 +34,6 @@ export default function App() {
             <MinePage
               entries={entries}
               loading={loading}
-              hidden={false}
               backend={backend}
               onDelete={remove}
               onClear={clear}

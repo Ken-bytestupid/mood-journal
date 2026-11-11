@@ -105,10 +105,6 @@ button {
   flex-direction: column;
 }
 
-.page[hidden] {
-  display: none;
-}
-
 /* ============================================================ 记录页：顶部两格 */
 
 .topbar {
@@ -466,7 +462,7 @@ button {
 
 /* ============================================================ 我的页 */
 
-.page.mine:not([hidden]) {
+.page.mine {
   display: block;
   overflow-y: auto;
   padding: 16px 14px calc(18px + env(safe-area-inset-bottom));

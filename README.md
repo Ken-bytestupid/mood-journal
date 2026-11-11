@@ -32,27 +32,45 @@ pnpm preview      # 预览构建产物，端口 5181
 ```
 src/
   core/                 与界面无关的地基
-    types.ts            Entry / Mood 数据结构
+    types.ts            Entry / Photo / Emotion 数据结构
     db.ts               IndexedDB 存储层，隐私模式自动退回 localStorage
+    durability.ts       持久化申请、容量统计、文字镜像
     time.ts             时间展示、按天分组、连续天数
     image.ts            照片压缩：480 缩略图 + 原尺寸图（只降画质），JPEG 自动降级
   modules/              按功能垂直切分
-    mood/moods.ts       情绪清单：4 积极 + 4 消极
+    mood/emotions.ts    心情三选一 + 具体情绪清单（4 积极 + 4 消极）
     entries/store.ts    记录的新增/删除/备份/导入
     entries/useEntries.ts  全局唯一的记录状态（两个页面共享）
   pages/
     RecordPage.tsx      「记录」：心情格 + 工具栏时钟 + 写作卡
-    MinePage.tsx        「我的」：统计、历史、详情、导入导出
+    MinePage.tsx        「我的」：今天 / 本周 / 通用
   ui/
     Sheet.tsx           底部弹层
     Toast.tsx           轻提示
-  App.tsx               外壳：两个 tab、页面保活、视口高度
+    EntryReader.tsx     居中翻页阅读器（左右滑动 + 三分区点击）
+    PhotoViewer.tsx     原尺寸看图
+    ConfirmDialog.tsx   删除类操作的二次确认
+    ErrorBoundary.tsx   区块级兜底
+    BlobImage.tsx       Blob → object URL，卸载时释放
+    MoodFace.tsx        手绘感心情脸
+  App.tsx               外壳：两个 tab、页面保活、页面级兜底
   styles.css            设计 token + 全部样式（浅色/深色两套）
-scripts/
+scripts/                开发自检脚本（不参与构建）
   make-icons.py         用 Pillow 生成 PWA 图标
-  inspect.mjs           无头浏览器测量 + 截图（开发自检）
-  flow.mjs              端到端：选心情→输入→加图→保存→列表→详情
-  verify2.mjs           深色模式、表情面板、保存反馈
+  inspect.mjs           布局测量 + 截图
+  probe.mjs             在页面里执行一段表达式（排障用）
+  offline-check.mjs     断网后能否打开
+  photo-full-check.mjs  照片两档尺寸/体积 + 原图查看器
+  confirm-check.mjs     删除/清空的二次确认
+  boundary-check.mjs    ErrorBoundary 隔离是否生效
+  swipe-touch-check.mjs 触摸翻页方向
+  tap-zone-check.mjs    左/中/右三分区点击
+  week-reader-check.mjs 本周抽屉 + 阅读器
+  stats-check.mjs       统计与分组
+  codec-check.mjs       WebP / JPEG 两条编码路径
+  legacy-check.mjs      旧数据（base64 照片）兼容
+  dead-css.mjs          未被使用的 CSS 类
+  static-server.mjs     本地模拟 Pages 子路径部署
 ```
 
 ## 交互约定（当前实现）
@@ -116,6 +134,24 @@ Entry {
 **边界要清楚**：网页没法把文件直接写进手机的「文件」目录，也没有后台定时任务——这是浏览器沙箱的限制。
 要真正"像原生 App 一样把数据放在应用目录、参与系统备份"，需要把前端包成原生壳
 （Capacitor / Tauri），数据层换成 SQLite 或文件。
+
+## 容错（一块坏了不拖垮整个应用）
+
+React 里未捕获的渲染错误会卸载整棵树（白屏），所以在「能独立失败的区域」外面各套了一层
+`ErrorBoundary`：
+
+| 边界 | 崩了之后 |
+|---|---|
+| 记录页 / 「我的」页 | 只坏这一页，另一页和底部导航照常 |
+| 本周心情、今天的记录、本周记录 | 只坏这一块，页面其余部分照常 |
+| 记录详情、原尺寸看图 | 关掉浮层即可，列表还在 |
+| 存储状态、数据与存储 | 通用抽屉里各自兜底 |
+
+坏掉的那块会显示一张小卡片（「XX 没能显示出来 / 重试」），点重试重新挂载这一块。
+数据层不依赖界面：存储统一走 `core/db → modules/entries/store → useEntries`，
+IndexedDB 不可用时自动退回 localStorage，另有纯文字镜像兜底。
+
+仍未覆盖：外壳本身、模块加载失败（`import` 出错）、数据层初始化失败。
 
 ## 已知限制 / 下一步
 

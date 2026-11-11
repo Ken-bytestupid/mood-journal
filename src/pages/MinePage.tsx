@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import {
   formatBytes,
   markExported,
@@ -18,10 +18,19 @@ import { MoodFace } from '../ui/MoodFace'
 import { Sheet } from '../ui/Sheet'
 import { useToast } from '../ui/Toast'
 
+/** 「通用」抽屉里的一行：左边标签、右边值。 */
+function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="storage-row">
+      <span>{label}</span>
+      <span>{children}</span>
+    </div>
+  )
+}
+
 interface MinePageProps {
   entries: Entry[]
   loading: boolean
-  hidden: boolean
   backend: StorageBackend
   onDelete: (id: string) => Promise<void>
   onClear: () => Promise<void>
@@ -71,7 +80,7 @@ function EntryRow({ entry, onOpen }: { entry: Entry; onOpen: () => void }) {
  * 我的页：只看「今天」的记录，统计收进按钮和副标题里。
  * 「本周」抽屉里按星期分组；点开任意一条进居中的翻页阅读器。
  */
-export function MinePage({ entries, loading, hidden, backend, onDelete, onClear, onImport, onRestore }: MinePageProps) {
+export function MinePage({ entries, loading, backend, onDelete, onClear, onImport, onRestore }: MinePageProps) {
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<StorageStatus | null>(null)
@@ -82,6 +91,7 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     { kind: 'delete'; entry: Entry } | { kind: 'clear' } | { kind: 'restore' } | null
   >(null)
 
+  // 存储状态：后端变化或打开「通用」时刷新一次，避免看到旧数字
   useEffect(() => {
     let alive = true
     void readStorageStatus(backend).then((next) => {
@@ -90,12 +100,7 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
     return () => {
       alive = false
     }
-  }, [backend])
-
-  useEffect(() => {
-    if (!generalOpen) return
-    void readStorageStatus(backend).then(setStatus)
-  }, [generalOpen, backend])
+  }, [backend, generalOpen])
 
   const refreshStatus = async () => {
     setStatus(await readStorageStatus(backend))
@@ -231,7 +236,7 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
   }
 
   return (
-    <div className="page mine" hidden={hidden}>
+    <div className="page mine">
       <header className="page-head">
         <h1>我的</h1>
         <p className="page-brand">
@@ -363,15 +368,13 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
         }
       >
         <ErrorBoundary label="存储状态">
-        <section className="storage-card">
-          <div className="storage-head">
-            <span>数据与存储</span>
-            <span className="storage-badge">{backend === 'idb' ? '本机数据库' : '兼容模式'}</span>
-          </div>
-          <div className="storage-rows">
-            <div className="storage-row">
-              <span>持久化</span>
-              <span>
+          <section className="storage-card">
+            <div className="storage-head">
+              <span>数据与存储</span>
+              <span className="storage-badge">{backend === 'idb' ? '本机数据库' : '兼容模式'}</span>
+            </div>
+            <div className="storage-rows">
+              <InfoRow label="持久化">
                 {status === null
                   ? '读取中…'
                   : status.persisted === true
@@ -379,45 +382,34 @@ export function MinePage({ entries, loading, hidden, backend, onDelete, onClear,
                     : status.persisted === false
                       ? '未授权'
                       : '不支持'}
-              </span>
-            </div>
-            <div className="storage-row">
-              <span>已用空间</span>
-              <span>
+              </InfoRow>
+              <InfoRow label="已用空间">
                 {status
                   ? `${formatBytes(status.usage)}${status.quota > 0 ? ` / ${formatBytes(status.quota)}` : ''}`
                   : '读取中…'}
-              </span>
-            </div>
-            <div className="storage-row">
-              <span>文字镜像</span>
-              <span>
+              </InfoRow>
+              <InfoRow label="文字镜像">
                 {status
                   ? `${status.mirrorCount} 条 · ${status.mirrorSavedAt ? timeAgo(status.mirrorSavedAt) : '—'}`
                   : '读取中…'}
-              </span>
-            </div>
-            <div className="storage-row">
-              <span>照片格式</span>
-              <span>
+              </InfoRow>
+              <InfoRow label="照片格式">
                 {status === null
                   ? '读取中…'
                   : status.photoType === 'image/webp'
                     ? 'WebP（更省空间）'
                     : 'JPEG（兼容模式）'}
-              </span>
+              </InfoRow>
+              <InfoRow label="上次导出">
+                {status?.lastExportAt ? timeAgo(status.lastExportAt) : '从未'}
+              </InfoRow>
             </div>
-            <div className="storage-row">
-              <span>上次导出</span>
-              <span>{status?.lastExportAt ? timeAgo(status.lastExportAt) : '从未'}</span>
-            </div>
-          </div>
-          <p className="storage-note">
-            {status?.persisted === true
-              ? '浏览器已承诺不会因为长期闲置而清理你的数据。'
-              : '还没有拿到持久化承诺：把应用「添加到主屏幕」后，系统才会长期保留这些记录。'}
-          </p>
-        </section>
+            <p className="storage-note">
+              {status?.persisted === true
+                ? '浏览器已承诺不会因为长期闲置而清理你的数据。'
+                : '还没有拿到持久化承诺：把应用「添加到主屏幕」后，系统才会长期保留这些记录。'}
+            </p>
+          </section>
         </ErrorBoundary>
 
         <ErrorBoundary label="数据与存储">
