@@ -1480,7 +1480,6 @@ button {
   --ring-selected: #f4f1ea;
   --ring-with: #cbc7c0;
   --ring-empty: #5d5a55;
-  --ring-line: rgba(255, 255, 255, 0.5);
   --ring-label-selected: var(--ink);
   --ring-label-with: var(--ink);
   --ring-label-empty: var(--on-scrim-soft);
@@ -1491,7 +1490,6 @@ button {
     --ring-selected: #b3b0aa;
     --ring-with: #45413d;
     --ring-empty: #262320;
-    --ring-line: rgba(255, 255, 255, 0.22);
     --ring-label-selected: #141311;
     --ring-label-with: var(--on-scrim-soft);
     --ring-label-empty: rgba(244, 241, 234, 0.62);
@@ -1748,8 +1746,8 @@ button {
 }
 
 .memory-sector {
-  stroke: var(--ring-line);
-  stroke-width: 1;
+  /* 块与块之间靠留缝分隔，不再描边 */
+  stroke: none;
   transition: transform 220ms var(--ease);
 }
 

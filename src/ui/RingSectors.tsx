@@ -25,7 +25,8 @@ export function RingSectors({
   pop = 9,
 }: RingSectorsProps) {
   const step = 360 / count
-  const gap = Math.min(1.4, step * 0.08)
+  // 块之间留缝来分隔（不描边）
+  const gap = Math.min(2, step * 0.12)
   const half = size / 2
 
   const point = (deg: number, radius: number) => {
