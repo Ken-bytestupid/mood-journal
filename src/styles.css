@@ -1468,6 +1468,18 @@ button {
   font-weight: 600;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
+  animation: year-pop 240ms var(--ease);
+}
+
+@keyframes year-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -34%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .memory-hole-year:active {
@@ -1498,7 +1510,11 @@ button {
   position: relative;
   width: min(240px, 78vw);
   padding: var(--space-14);
+  /* 半透明 + 背景模糊，底下「我的」页仍可见 */
   background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  backdrop-filter: blur(18px) saturate(120%);
   border-radius: var(--radius-20);
   box-shadow: 0 24px 60px var(--shadow-reader);
   display: flex;
@@ -1523,6 +1539,7 @@ button {
   top: 88px;
   height: 44px;
   background: var(--surface-2);
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
   pointer-events: none;
 }
 
@@ -1538,26 +1555,10 @@ button {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--muted);
-  font-size: var(--text-22);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  transition:
-    transform 240ms var(--ease),
-    opacity 240ms var(--ease),
-    font-size 180ms var(--ease),
-    color 180ms var(--ease);
-}
-
-/* 选中的那一行更大更实，邻居变灰 */
-.wheel-item[data-active='true'] {
   color: var(--ink);
-  font-size: var(--text-30);
+  font-size: var(--text-20);
   font-weight: 600;
-}
-
-.wheel-stage[data-dragging='true'] .wheel-item {
-  transition: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .wheel-actions {

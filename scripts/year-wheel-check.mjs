@@ -85,15 +85,16 @@ await touch('touchEnd', [])
 await sleep(500)
 console.log('上拖 44px 后:', JSON.stringify(await wheelState()))
 
-// 点高亮行下面第二个（+2 岁）
+// 点「当前 +2 年」那一行
 await evaluate(`(() => {
-  const stage = document.querySelector('.wheel-stage')
-  const rows = [...stage.querySelectorAll('.wheel-item')]
-  const active = rows.find((r) => r.dataset.active === 'true')
-  const idx = rows.indexOf(active)
-  rows[idx + 2]?.click()
+  const confirm = document.querySelector('.wheel-root .memory-confirm').textContent.trim()
+  const current = parseInt(confirm, 10)
+  const target = current + 2
+  const rows = [...document.querySelectorAll('.wheel-stage .wheel-item')]
+  const row = rows.find((r) => r.textContent.trim() === target + ' 年')
+  row?.click()
 })()`)
-await sleep(400)
+await sleep(600)
 console.log('点 +2 行:', JSON.stringify(await wheelState()))
 
 // 确认

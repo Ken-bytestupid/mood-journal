@@ -21,6 +21,9 @@ const SENSITIVITY = 0.55
 const YEAR_START = 1970
 const YEAR_END = 2100
 const YEAR_ITEM_H = 44
+/** 滚轮字号：中间最大，远离中心逐渐回到基础字号 */
+const WHEEL_BASE_FONT = 20
+const WHEEL_GROW = 6
 
 type Stage = 'month' | 'week' | 'list'
 type Phase = 'idle' | 'dragging' | 'busy'
@@ -65,11 +68,13 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const noticeTimer = useRef<number | null>(null)
   // 年份滚轮
   const [wheelOpen, setWheelOpen] = useState(false)
-  const [wheelIndex, setWheelIndex] = useState(0)
-  const [wheelOffset, setWheelOffset] = useState(0)
+  /** 当前位置，单位是「行」（浮点）：拖动和归位都用它，渲染按位置连续计算 */
+  const [wheelPos, setWheelPos] = useState(0)
   const [wheelDragging, setWheelDragging] = useState(false)
+  const wheelPosRef = useRef(0)
   const wheelStartY = useRef(0)
-  const wheelTick = useRef(0)
+  const wheelStartPos = useRef(0)
+  const wheelRaf = useRef<number | null>(null)
 
   /** 屏幕中央的短提示，1.6 秒后自动消失 */
   const showNotice = useCallback((message: string) => {
@@ -319,26 +324,73 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const monthName = `${year} 年 ${monthIndex + 1} 月`
 
   /** 年份滚轮：固定显示 5 行（当前 ±2），靠拖拽换年 */
-  const clampYearIndex = (value: number) =>
+  const clampYearPos = (value: number) =>
     Math.min(YEAR_END - YEAR_START, Math.max(0, value))
 
-  const openWheel = () => {
-    setWheelIndex(clampYearIndex(year - YEAR_START))
-    setWheelOffset(0)
-    setWheelOpen(true)
+  const stopWheelAnim = () => {
+    if (wheelRaf.current !== null) {
+      cancelAnimationFrame(wheelRaf.current)
+      wheelRaf.current = null
+    }
   }
 
-  /** 每过一年轻震一下（Android 支持；iOS Safari 没有这个 API，会自动跳过） */
+  const setWheelPosition = (value: number) => {
+    const next = clampYearPos(value)
+    wheelPosRef.current = next
+    setWheelPos(next)
+  }
+
+  /** 松手后平滑归位到整行 */
+  const animateWheelTo = (target: number) => {
+    stopWheelAnim()
+    const from = wheelPosRef.current
+    const start = performance.now()
+    const duration = 220
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setWheelPosition(from + (target - from) * eased)
+      if (t < 1) wheelRaf.current = requestAnimationFrame(tick)
+      else {
+        wheelRaf.current = null
+        setWheelPosition(target)
+      }
+    }
+    wheelRaf.current = requestAnimationFrame(tick)
+  }
+
+  /** 每年一格的轻震（Android 支持；iOS Safari 没有这个 API，会自动跳过） */
   const vibrateTick = () => {
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       navigator.vibrate(8)
     }
   }
 
+  useEffect(() => stopWheelAnim, [])
+
+  // 每跨过一整年轻震一下
+  const lastTick = useRef<number | null>(null)
+  useEffect(() => {
+    if (!wheelOpen) {
+      lastTick.current = null
+      return
+    }
+    const tick = Math.round(wheelPos)
+    if (lastTick.current !== null && tick !== lastTick.current) vibrateTick()
+    lastTick.current = tick
+  }, [wheelPos, wheelOpen])
+
+  const openWheel = () => {
+    stopWheelAnim()
+    setWheelPosition(year - YEAR_START)
+    setWheelOpen(true)
+  }
+
   const onWheelDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.stopPropagation()
+    stopWheelAnim()
     wheelStartY.current = event.clientY
-    wheelTick.current = 0
+    wheelStartPos.current = wheelPosRef.current
     setWheelDragging(true)
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
@@ -347,28 +399,21 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     if (!wheelDragging) return
     event.stopPropagation()
     const dy = event.clientY - wheelStartY.current
-    const tick = Math.round(-dy / YEAR_ITEM_H)
-    if (tick !== wheelTick.current) {
-      wheelTick.current = tick
-      vibrateTick()
-    }
-    setWheelOffset(Math.max(-YEAR_ITEM_H * 3, Math.min(YEAR_ITEM_H * 3, dy)))
+    setWheelPosition(wheelStartPos.current - dy / YEAR_ITEM_H)
   }
 
   const onWheelUp = () => {
     if (!wheelDragging) return
     setWheelDragging(false)
-    const moved = Math.round(-wheelOffset / YEAR_ITEM_H)
-    setWheelIndex((current) => clampYearIndex(current + moved))
-    setWheelOffset(0)
-    wheelTick.current = 0
+    animateWheelTo(Math.round(wheelPosRef.current))
   }
+
+  const wheelYear = YEAR_START + Math.round(wheelPos)
 
   /** 选好年份：把圆环拨到「该年 + 当前月份」 */
   const applyWheel = () => {
-    const target = YEAR_START + wheelIndex
     setWheelOpen(false)
-    setSpin(-((target - baseYear) * 12 + monthIndex) * MONTH_STEP)
+    setSpin(-((wheelYear - baseYear) * 12 + monthIndex) * MONTH_STEP)
   }
 
   // 月环与周环共用同一套转盘手势；列表页和详情浮层不接收本层手势
@@ -405,7 +450,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
               })}
             </div>
             <div className="memory-hole" aria-hidden="true" />
-            <button type="button" className="memory-hole-year" onClick={openWheel} aria-label="选择年份">
+            <button type="button" key={year} className="memory-hole-year" onClick={openWheel} aria-label="选择年份">
               {year}
             </button>
           </div>
@@ -561,40 +606,37 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
                   onPointerCancel={onWheelUp}
                 >
                   <div className="wheel-band" aria-hidden="true" />
-                  {[-3, -2, -1, 0, 1, 2, 3].map((delta) => {
-                    const index = wheelIndex + delta
-                    if (index < 0 || index > YEAR_END - YEAR_START) return null
-                    const value = YEAR_START + index
-                    // 跟随手指的位移；静止时按行距排布，正好露出中间 5 行
-                    const shift = delta * YEAR_ITEM_H + wheelOffset
-                    const distance = Math.abs(shift) / YEAR_ITEM_H
-                    return (
-                      <button
-                        type="button"
-                        key={value}
-                        className="wheel-item"
-                        data-active={delta === 0 ? 'true' : 'false'}
-                        style={{
-                          transform: `translateY(${shift}px)`,
-                          opacity: Math.max(0.12, 1 - distance * 0.38),
-                        }}
-                        onClick={() => {
-                          setWheelIndex(clampYearIndex(index))
-                          setWheelOffset(0)
-                          vibrateTick()
-                        }}
-                      >
-                        {value} 年
-                      </button>
-                    )
-                  })}
+                  {Array.from({ length: 7 }, (_, k) => Math.round(wheelPos) - 3 + k)
+                    .filter((index) => index >= 0 && index <= YEAR_END - YEAR_START)
+                    .map((index) => {
+                      const value = YEAR_START + index
+                      // 用「到中心的距离」连续计算：滚到带子里的那一行当下就是放大的
+                      const offsetRows = index - wheelPos
+                      const distance = Math.abs(offsetRows)
+                      const enlarge = Math.max(0, 1 - distance)
+                      return (
+                        <button
+                          type="button"
+                          key={value}
+                          className="wheel-item"
+                          style={{
+                            transform: `translateY(${offsetRows * YEAR_ITEM_H}px)`,
+                            opacity: Math.max(0.12, 1 - distance * 0.38),
+                            fontSize: `${WHEEL_BASE_FONT + WHEEL_GROW * enlarge}px`,
+                          }}
+                          onClick={() => animateWheelTo(index)}
+                        >
+                          {value} 年
+                        </button>
+                      )
+                    })}
                 </div>
                 <div className="wheel-actions">
                   <button type="button" className="memory-back" onClick={() => setWheelOpen(false)}>
                     取消
                   </button>
                   <button type="button" className="memory-confirm" onClick={applyWheel}>
-                    {YEAR_START + wheelIndex} 年
+                    {wheelYear} 年
                   </button>
                 </div>
               </div>
