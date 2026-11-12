@@ -101,11 +101,13 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
 
   // 每个月 / 每周的记录数（用来置灰没有记录的选项）
   const { byMonth, byWeek, demoMode } = useMemo(() => {
-    const months = new Map<number, number>()
+    const months = new Map<string, number>()
     const weeks = new Map<string, number>()
     for (const entry of entries) {
       const date = new Date(entry.createdAt)
-      months.set(date.getMonth(), (months.get(date.getMonth()) ?? 0) + 1)
+      // 月份必须带上年份，否则换到别的年份还会沿用今年的记录数
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`
+      months.set(monthKey, (months.get(monthKey) ?? 0) + 1)
       const key = isoWeekKey(entry.createdAt)
       weeks.set(key, (weeks.get(key) ?? 0) + 1)
     }
@@ -149,9 +151,14 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   /** 列表按天分组，带星期标题 */
   const weekGroups = useMemo(() => groupByDay(weekEntries), [weekEntries])
 
+  const monthCount = useCallback(
+    (index: number) => byMonth.get(`${year}-${index}`) ?? 0,
+    [byMonth, year],
+  )
+
   const monthEnabled = useCallback(
-    (index: number) => demoMode || byMonth.has(index),
-    [byMonth, demoMode],
+    (index: number) => demoMode || monthCount(index) > 0,
+    [demoMode, monthCount],
   )
   const monthHasRecords = monthEnabled(monthIndex)
   const weekHasRecords = week?.enabled ?? false
@@ -547,7 +554,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
             {stage === 'month' ? (
               <>
                 <strong>{monthName}</strong>
-                <span>{demoMode ? '演示模式：全部可选' : `${byMonth.get(monthIndex) ?? 0} 条记录`}</span>
+                <span>{demoMode ? '演示模式：全部可选' : `${monthCount(monthIndex)} 条记录`}</span>
               </>
             ) : (
               <>
