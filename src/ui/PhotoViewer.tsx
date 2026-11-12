@@ -200,22 +200,33 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, origin }: P
           className="photo-viewer-track"
           ref={trackRef}
           style={{
-            transform: closing
-              ? `translate3d(calc(-33.3333% + ${closing.x}px), ${closing.y}px, 0) scale(${closing.scale})`
-              : `translate3d(calc(-33.3333% + ${dx}px), ${dy}px, 0) scale(${Math.max(
-                  0.86,
-                  1 - Math.abs(dy) / 1800,
-                )})`,
-            transition: animate
-              ? `transform ${closing ? 260 : FLY_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 260ms var(--ease)`
-              : 'none',
-            opacity: closing ? 0 : Math.max(0, 1 - Math.abs(dy) / 620),
+            // 拖拽时整条轨道跟手；关闭时轨道归位，只有当前这张图做缩小
+            transform: `translate3d(calc(-33.3333% + ${closing ? 0 : dx}px), ${closing ? 0 : dy}px, 0) scale(${
+              closing ? 1 : Math.max(0.86, 1 - Math.abs(dy) / 1800)
+            })`,
+            transition: animate ? `transform ${FLY_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)` : 'none',
+            opacity: closing ? 1 : Math.max(0, 1 - Math.abs(dy) / 620),
           }}
         >
           {slides.map((slideIndex) =>
             slideIndex >= 0 && slideIndex < photos.length ? (
               <div className="photo-viewer-slide" key={slideIndex}>
-                <BlobImage blob={photos[slideIndex].full} alt="照片" className="photo-viewer-image" />
+                <div
+                  className="photo-viewer-frame"
+                  style={
+                    closing && slideIndex === index
+                      ? {
+                          transform: `translate(${closing.x}px, ${closing.y}px) scale(${closing.scale})`,
+                          opacity: 0,
+                          transition: animate
+                            ? 'transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 260ms var(--ease)'
+                            : 'none',
+                        }
+                      : undefined
+                  }
+                >
+                  <BlobImage blob={photos[slideIndex].full} alt="照片" className="photo-viewer-image" />
+                </div>
               </div>
             ) : (
               <div className="photo-viewer-slide" key={slideIndex} />

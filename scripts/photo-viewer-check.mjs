@@ -147,7 +147,20 @@ await evaluate(`(() => {
   document.querySelector('.photo-viewer-stage').dispatchEvent(up)
 })()`)
 await sleep(110)
-console.log('关闭动画中:', JSON.stringify(await viewer()))
+console.log(
+  '关闭动画中:',
+  JSON.stringify(
+    await evaluate(`(() => {
+      const frames = [...document.querySelectorAll('.photo-viewer-frame')]
+      const animated = frames.filter((el) => el.style.transform && el.style.transform !== '')
+      return {
+        open: !!document.querySelector('.photo-viewer'),
+        animatedCount: animated.length,
+        shift: animated[0]?.style.transform ?? null,
+      }
+    })()`),
+  ),
+)
 await sleep(450)
 console.log('点空白后:', JSON.stringify(await viewer()))
 

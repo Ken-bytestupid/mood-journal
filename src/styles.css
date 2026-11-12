@@ -1366,6 +1366,14 @@ button {
   justify-content: center;
 }
 
+/* 每张照片自己的一层：关闭时只有当前这张做缩小动画 */
+.photo-viewer-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
+}
+
 /* 按草图：等比例缩放，四周留白 */
 .photo-viewer-image {
   max-width: 92vw;
