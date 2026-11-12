@@ -5,6 +5,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { CloseButton } from '../ui/CloseButton'
 import { EntryReader } from '../ui/EntryReader'
 import { EntryRow } from '../ui/EntryRow'
+import { usePagerGestures } from '../ui/usePagerGestures'
 
 interface MemoryPageProps {
   entries: Entry[]
@@ -52,6 +53,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   // 打开时指针就停在「现在」这个月（月份按逆时针拖动前进，所以初始 spin 取负）
   const [spin, setSpin] = useState(() => -new Date().getMonth() * MONTH_STEP)
   const [weekSpin, setWeekSpin] = useState(0)
+  const [weekDrag, setWeekDrag] = useState(0)
   const [shutter, setShutter] = useState(0)
   const [readerIndex, setReaderIndex] = useState<number | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Entry | null>(null)
@@ -249,18 +251,54 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     void transition(() => setStage('month'))
   }
 
+  /** 周与周之间翻页：和阅读器同一套手势，左滑 = 下一周（数字更大） */
+  const stepWeek = useCallback(
+    (delta: number) => {
+      if (weeks.length === 0) return
+      const next = mod(weekIndex + delta, weeks.length)
+      setWeekDrag(0)
+      setWeekSpin(-next * weekStep)
+    },
+    [weekIndex, weekStep, weeks.length],
+  )
+
+  const weekPager = usePagerGestures({
+    isBusy: () => phaseRef.current === 'busy',
+    canPage: weeks.length > 1,
+    onDragStart: () => setPhase('dragging'),
+    onDrag: (dx) => setWeekDrag(dx * 0.45),
+    onDragCancel: () => {
+      setWeekDrag(0)
+      setPhase('idle')
+    },
+    onNext: () => {
+      setPhase('idle')
+      stepWeek(1)
+    },
+    onPrev: () => {
+      setPhase('idle')
+      stepWeek(-1)
+    },
+    onDismiss: () => {
+      setWeekDrag(0)
+      goBack()
+    },
+  })
+
   const monthName = `${year} 年 ${monthIndex + 1} 月`
 
+  // 月份环用转盘手势；周环复用阅读器的翻页手势；列表页和详情浮层不接收本层手势
+  const rootHandlers =
+    readerIndex !== null
+      ? {}
+      : stage === 'month'
+        ? { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp }
+        : stage === 'week'
+          ? weekPager
+          : {}
+
   return (
-    <div
-      className="memory"
-      ref={rootRef}
-      data-stage={stage}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-    >
+    <div className="memory" ref={rootRef} data-stage={stage} {...rootHandlers}>
       <CloseButton onClick={onClose} />
 
       <div className="memory-stage" hidden={stage === 'list'}>
@@ -290,7 +328,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
           </div>
         ) : (
           <div className="memory-ring small" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
-            <div className="memory-ring-track" style={{ transform: `rotate(${weekSpin}deg)` }}>
+            <div className="memory-ring-track" style={{ transform: `rotate(${weekSpin + weekDrag}deg)` }}>
               {weeks.map((item, index) => {
                 const a = index * weekStep
                 const upright = -(weekSpin + a)
