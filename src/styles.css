@@ -1465,8 +1465,11 @@ button {
   pointer-events: none;
 }
 
+/* 阶段容器固定成月环大小：周环较小也居中，关闭按钮/指针位置不随阶段跳动 */
 .memory-stage {
   position: relative;
+  width: 268px;
+  height: 268px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1476,7 +1479,24 @@ button {
   display: none;
 }
 
-/* 列表阶段不需要左侧年份，避免和卡片打架 */
+/* 记忆页的关闭按钮：顶端与三角形顶端齐平，
+   「×」的中心落在圆环右端点的切线上（即 x = 圆心 + 半径） */
+.overlay-close.memory-close {
+  top: -26px;
+  right: auto;
+  left: calc(50% + 117px);
+}
+
+/* 列表阶段：点卡片以外的空白回到上一级（周环） */
+.memory-list-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
 /* 顶部指针：向下的三角 */
 .memory-pointer {
   position: absolute;
@@ -1692,6 +1712,8 @@ button {
 
 /* 一周的记录列表 */
 .memory-list {
+  position: relative;
+  z-index: 1;
   width: min(420px, 100% - 32px);
   max-height: 70vh;
   overflow-y: auto;

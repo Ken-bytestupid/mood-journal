@@ -5,7 +5,6 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { CloseButton } from '../ui/CloseButton'
 import { EntryReader } from '../ui/EntryReader'
 import { EntryRow } from '../ui/EntryRow'
-import { usePagerGestures } from '../ui/usePagerGestures'
 
 interface MemoryPageProps {
   entries: Entry[]
@@ -53,7 +52,6 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   // 打开时指针就停在「现在」这个月（月份按逆时针拖动前进，所以初始 spin 取负）
   const [spin, setSpin] = useState(() => -new Date().getMonth() * MONTH_STEP)
   const [weekSpin, setWeekSpin] = useState(0)
-  const [weekDrag, setWeekDrag] = useState(0)
   const [shutter, setShutter] = useState(0)
   const [readerIndex, setReaderIndex] = useState<number | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Entry | null>(null)
@@ -72,7 +70,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   }, [])
 
   const rootRef = useRef<HTMLDivElement>(null)
-  const drag = useRef({ active: false, lastAngle: 0, moved: 0 })
+  const drag = useRef({ active: false, lastAngle: 0, moved: 0, startX: 0, startY: 0, lastX: 0, lastY: 0 })
   const shutterRef = useRef(0)
   const phaseRef = useRef<Phase>('idle')
 
@@ -171,20 +169,60 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     [animateShutter],
   )
 
-  /** 松手吸附到最近的一格（每一格都停得住，没记录也照停） */
-  const release = useCallback(() => {
-    if (!drag.current.active) return
-    drag.current.active = false
-    drag.current.moved = 0
-    if (phaseRef.current === 'busy') return
+  const goBack = () => {
+    if (stage !== 'week') return
+    void transition(() => setStage('month'))
+  }
 
-    if (stage === 'month') {
-      setSpin(-Math.round(monthSlots) * MONTH_STEP)
-      return
-    }
+  /** 点圆环内左右半边 = 上/下一周（保留点击切换的手感） */
+  const stepWeek = useCallback(
+    (delta: number) => {
+      if (weeks.length === 0) return
+      const next = mod(weekIndex + delta, weeks.length)
+      setWeekSpin(-next * weekStep)
+    },
+    [weekIndex, weekStep, weeks.length],
+  )
 
-    setWeekSpin(-Math.round(weekSlots) * weekStep)
-  }, [monthSlots, stage, weekSlots, weekStep])
+  /** 松手：吸附到最近一格；只点了一下则按「点在环内还是环外」决定行为 */
+  const release = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (!drag.current.active) return
+      const cancelled = event.type === 'pointercancel'
+      const x = cancelled ? drag.current.lastX : event.clientX
+      const y = cancelled ? drag.current.lastY : event.clientY
+      const moved = Math.abs(drag.current.moved)
+      const distance = Math.hypot(x - drag.current.startX, y - drag.current.startY)
+      drag.current.active = false
+      drag.current.moved = 0
+      if (phaseRef.current === 'busy') return
+
+      // 先吸附
+      if (stage === 'month') setSpin(-Math.round(monthSlots) * MONTH_STEP)
+      else setWeekSpin(-Math.round(weekSlots) * weekStep)
+
+      // 拖动过就不算点击
+      if (moved > 6 || distance > 10) return
+
+      const ring = rootRef.current?.querySelector('.memory-ring')
+      const rect = ring?.getBoundingClientRect()
+      const cx = rect ? rect.left + rect.width / 2 : window.innerWidth / 2
+      const cy = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+      const radius = rect ? rect.width / 2 : 0
+      const outside = Math.hypot(x - cx, y - cy) > radius + 12
+
+      // 点环外空白：上一级
+      if (outside) {
+        if (stage === 'month') onClose()
+        else goBack()
+        return
+      }
+
+      // 点环内左右半边：上/下一周
+      if (stage === 'week') stepWeek(x < cx ? -1 : 1)
+    },
+    [goBack, monthSlots, onClose, stage, stepWeek, weekSlots, weekStep],
+  )
 
   /** 点「选这个月」才换场到周环；周环默认停在当前这一周 */
   const confirmMonth = () => {
@@ -218,12 +256,21 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (phase === 'busy') return
+    // 按钮上的点击交给按钮自己处理，不算空白区点击
+    if ((event.target as Element).closest('button, a, input, textarea')) {
+      drag.current.active = false
+      return
+    }
     const rect = rootRef.current?.getBoundingClientRect()
     if (!rect) return
     const cx = rect.left + rect.width / 2
     const cy = rect.top + rect.height / 2
     drag.current.active = true
     drag.current.moved = 0
+    drag.current.startX = event.clientX
+    drag.current.startY = event.clientY
+    drag.current.lastX = event.clientX
+    drag.current.lastY = event.clientY
     drag.current.lastAngle = (Math.atan2(event.clientY - cy, event.clientX - cx) * 180) / Math.PI
     setPhase('dragging')
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -231,6 +278,8 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!drag.current.active || phaseRef.current === 'busy') return
+    drag.current.lastX = event.clientX
+    drag.current.lastY = event.clientY
     const rect = rootRef.current?.getBoundingClientRect()
     if (!rect) return
     const cx = rect.left + rect.width / 2
@@ -244,64 +293,22 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     else setWeekSpin((value) => value + applied)
   }
 
-  const onPointerUp = () => release()
-
-  const goBack = () => {
-    if (stage !== 'week') return
-    void transition(() => setStage('month'))
-  }
-
-  /** 周与周之间翻页：和阅读器同一套手势，左滑 = 下一周（数字更大） */
-  const stepWeek = useCallback(
-    (delta: number) => {
-      if (weeks.length === 0) return
-      const next = mod(weekIndex + delta, weeks.length)
-      setWeekDrag(0)
-      setWeekSpin(-next * weekStep)
-    },
-    [weekIndex, weekStep, weeks.length],
-  )
-
-  const weekPager = usePagerGestures({
-    isBusy: () => phaseRef.current === 'busy',
-    canPage: weeks.length > 1,
-    onDragStart: () => setPhase('dragging'),
-    onDrag: (dx) => setWeekDrag(dx * 0.45),
-    onDragCancel: () => {
-      setWeekDrag(0)
-      setPhase('idle')
-    },
-    onNext: () => {
-      setPhase('idle')
-      stepWeek(1)
-    },
-    onPrev: () => {
-      setPhase('idle')
-      stepWeek(-1)
-    },
-    onDismiss: () => {
-      setWeekDrag(0)
-      goBack()
-    },
-  })
+  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => release(event)
 
   const monthName = `${year} 年 ${monthIndex + 1} 月`
 
-  // 月份环用转盘手势；周环复用阅读器的翻页手势；列表页和详情浮层不接收本层手势
+  // 月环与周环共用同一套转盘手势；列表页和详情浮层不接收本层手势
   const rootHandlers =
-    readerIndex !== null
+    readerIndex !== null || stage === 'list'
       ? {}
-      : stage === 'month'
-        ? { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp }
-        : stage === 'week'
-          ? weekPager
-          : {}
+      : { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp }
 
   return (
     <div className="memory" ref={rootRef} data-stage={stage} {...rootHandlers}>
-      <CloseButton onClick={onClose} />
+      {stage === 'list' ? <CloseButton onClick={onClose} /> : null}
 
       <div className="memory-stage" hidden={stage === 'list'}>
+        <CloseButton onClick={onClose} className="memory-close" />
         <div className="memory-pointer" aria-hidden="true" />
         {stage === 'month' ? (
           <div className="memory-ring" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
@@ -328,7 +335,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
           </div>
         ) : (
           <div className="memory-ring small" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
-            <div className="memory-ring-track" style={{ transform: `rotate(${weekSpin + weekDrag}deg)` }}>
+            <div className="memory-ring-track" style={{ transform: `rotate(${weekSpin}deg)` }}>
               {weeks.map((item, index) => {
                 const a = index * weekStep
                 const upright = -(weekSpin + a)
@@ -373,15 +380,18 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
       </div>
 
       {stage === 'list' ? (
-        <div className="memory-list" data-fade={fade}>
-          <div className="memory-list-head">
-            <span>
-              {monthName} · 第 {week?.week ?? '—'} 周
-            </span>
-            <button type="button" className="memory-confirm" onClick={backToWeeks} aria-label="返回周环">
-              ↩ 返回
-            </button>
-          </div>
+        <>
+          {/* 点列表以外的空白：回上一级（周环） */}
+          <button type="button" className="memory-list-backdrop" aria-label="返回周环" onClick={backToWeeks} />
+          <div className="memory-list" data-fade={fade}>
+            <div className="memory-list-head">
+              <span>
+                {monthName} · 第 {week?.week ?? '—'} 周
+              </span>
+              <button type="button" className="memory-confirm" onClick={backToWeeks} aria-label="返回周环">
+                ↩ 返回
+              </button>
+            </div>
           {weekGroups.length === 0 ? (
             <p className="memory-empty">这一周还没有记录</p>
           ) : (
@@ -401,7 +411,8 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
               </section>
             ))
           )}
-        </div>
+          </div>
+        </>
       ) : (
         <>
           <div className="memory-caption">
