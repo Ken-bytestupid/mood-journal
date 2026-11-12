@@ -197,6 +197,9 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
       drag.current.moved = 0
       if (phaseRef.current === 'busy') return
 
+      // 松手后恢复过渡动画（拖动时是关掉的），否则接下来的吸附/翻周会瞬移
+      setPhase('idle')
+
       // 先吸附
       if (stage === 'month') setSpin(-Math.round(monthSlots) * MONTH_STEP)
       else setWeekSpin(-Math.round(weekSlots) * weekStep)
