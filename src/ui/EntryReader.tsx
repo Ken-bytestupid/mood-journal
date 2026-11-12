@@ -135,7 +135,7 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
                     setPhotoIndex(index_)
                   }}
                 >
-                  <BlobImage blob={photo.thumb} alt={`照片 ${index_ + 1}`} />
+                  <BlobImage blob={photo.thumb} alt={`照片 ${index_ + 1}`} eager />
                 </button>
               ))}
             </div>

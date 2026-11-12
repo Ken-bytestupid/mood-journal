@@ -1212,8 +1212,9 @@ button {
   -webkit-user-select: none;
 }
 
-/* 打开原尺寸查看器时，把下面的卡片藏起来，避免页码透出来 */
-.reader-root[data-photo-open='true'] .reader-stage {
+/* 打开原尺寸查看器时，只把缩略图藏起来：详情本身留着，关闭动画一结束缩略图就出现，
+   看起来像照片缩小后被放回原位 */
+.reader-root[data-photo-open='true'] .reader-photos {
   visibility: hidden;
 }
 

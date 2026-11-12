@@ -15,6 +15,8 @@ interface PhotoViewerProps {
 /** 飞页动画时长与阈值，和阅读器保持同一套手感 */
 const FLY_MS = 200
 const SWIPE_X = 50
+/** 关闭时缩回缩略图的时长：比飞页略长一点，帧数更多、看着更顺 */
+const CLOSE_MS = 340
 /** 向下拖过这个距离就关闭 */
 const DISMISS_Y = 110
 /** 判定为拖动的最小位移 */
@@ -66,7 +68,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, origin }: P
         y: origin.top + origin.height / 2 - (image.top + image.height / 2),
         scale,
       })
-      window.setTimeout(onClose, 260)
+      window.setTimeout(onClose, CLOSE_MS)
     })
   }, [onClose, origin])
 
@@ -219,13 +221,13 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, origin }: P
                           transform: `translate(${closing.x}px, ${closing.y}px) scale(${closing.scale})`,
                           opacity: 0,
                           transition: animate
-                            ? 'transform 260ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 260ms var(--ease)'
+                            ? `transform ${CLOSE_MS}ms cubic-bezier(0.32, 0.72, 0.24, 1), opacity ${CLOSE_MS}ms var(--ease)`
                             : 'none',
                         }
                       : undefined
                   }
                 >
-                  <BlobImage blob={photos[slideIndex].full} alt="照片" className="photo-viewer-image" />
+                  <BlobImage blob={photos[slideIndex].full} alt="照片" className="photo-viewer-image" eager />
                 </div>
               </div>
             ) : (
