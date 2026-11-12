@@ -1573,20 +1573,27 @@ button {
   background: transparent;
 }
 
+/* 落在压暗的背景上，用奶白色字保证对比（不另加底板） */
 .memory-caption {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
   font-size: var(--text-13);
-  color: var(--ink-2);
+  color: var(--on-scrim-soft);
   text-align: center;
+  text-shadow: 0 1px 6px rgba(10, 9, 8, 0.45);
 }
 
 .memory-caption strong {
   font-size: var(--text-16);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--on-scrim-soft);
+}
+
+/* 副标题（几条记录）稍微压一点，主次分明 */
+.memory-caption > span {
+  opacity: 0.72;
 }
 
 .memory-back {
