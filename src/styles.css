@@ -1355,6 +1355,8 @@ button {
   display: flex;
   width: 300%;
   will-change: transform;
+  /* 缩放以中间那张图为中心（关闭时缩回缩略图靠它对齐） */
+  transform-origin: 33.3333% 50%;
 }
 
 .photo-viewer-slide {
@@ -1366,8 +1368,8 @@ button {
 
 /* 按草图：等比例缩放，四周留白 */
 .photo-viewer-image {
-  max-width: 76vw;
-  max-height: 64vh;
+  max-width: 92vw;
+  max-height: 76vh;
   width: auto;
   height: auto;
   object-fit: contain;

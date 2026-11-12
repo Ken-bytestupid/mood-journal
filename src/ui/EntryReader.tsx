@@ -27,6 +27,9 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   const [offset, setOffset] = useState(0)
   const [animate, setAnimate] = useState(true)
   const [photoIndex, setPhotoIndex] = useState<number | null>(null)
+  const [photoOrigin, setPhotoOrigin] = useState<{ left: number; top: number; width: number; height: number } | null>(
+    null,
+  )
   const busy = useRef(false)
 
   const entry = entries[index]
@@ -125,7 +128,12 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
                   type="button"
                   className="reader-photo"
                   aria-label={`查看第 ${index_ + 1} 张照片的原尺寸`}
-                  onClick={() => setPhotoIndex(index_)}
+                  onClick={(event) => {
+                    // 记住缩略图位置，关闭预览时缩回这里
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    setPhotoOrigin({ left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+                    setPhotoIndex(index_)
+                  }}
                 >
                   <BlobImage blob={photo.thumb} alt={`照片 ${index_ + 1}`} />
                 </button>
@@ -150,6 +158,7 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
         <PhotoViewer
           photos={entry.photos}
           index={photoIndex}
+          origin={photoOrigin}
           onIndexChange={setPhotoIndex}
           onClose={() => setPhotoIndex(null)}
         />

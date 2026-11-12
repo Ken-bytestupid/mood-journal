@@ -8,6 +8,8 @@ interface PhotoViewerProps {
   index: number
   onIndexChange: (index: number) => void
   onClose: () => void
+  /** 缩略图的位置和尺寸：关闭时缩小回这里 */
+  origin?: { left: number; top: number; width: number; height: number } | null
 }
 
 /** 飞页动画时长与阈值，和阅读器保持同一套手感 */
@@ -22,10 +24,13 @@ const SLOP = 8
  * 照片预览：三张并排（上一张 / 当前 / 下一张），左右滑动跟手切换；
  * 点图片外的空白关闭；按住图片向下拖也能关闭（iOS 相册那种）。
  */
-export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoViewerProps) {
+export function PhotoViewer({ photos, index, onIndexChange, onClose, origin }: PhotoViewerProps) {
   const [dx, setDx] = useState(0)
   const [dy, setDy] = useState(0)
   const [animate, setAnimate] = useState(true)
+  /** 关闭时缩回缩略图的位移与缩放 */
+  const [closing, setClosing] = useState<{ x: number; y: number; scale: number } | null>(null)
+  const closingRef = useRef(false)
   const dragging = useRef(false)
   const axis = useRef<'x' | 'y' | null>(null)
   const start = useRef({ x: 0, y: 0 })
@@ -36,6 +41,34 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
   const photo = photos[index]
   const canPrev = index > 0
   const canNext = index < photos.length - 1
+
+  /**
+   * 关闭：先归位，再算「缩回缩略图」需要的位移和缩放，动画结束才真正卸载。
+   */
+  const dismiss = useCallback(() => {
+    if (closingRef.current) return
+    closingRef.current = true
+    setAnimate(false)
+    setDx(0)
+    setDy(0)
+    requestAnimationFrame(() => {
+      const image = trackRef.current
+        ?.querySelector('.photo-viewer-slide:nth-child(2) .photo-viewer-image')
+        ?.getBoundingClientRect()
+      if (!origin || !image || image.width === 0) {
+        onClose()
+        return
+      }
+      const scale = Math.max(0.08, Math.min(1, origin.width / image.width))
+      setAnimate(true)
+      setClosing({
+        x: origin.left + origin.width / 2 - (image.left + image.width / 2),
+        y: origin.top + origin.height / 2 - (image.top + image.height / 2),
+        scale,
+      })
+      window.setTimeout(onClose, 260)
+    })
+  }, [onClose, origin])
 
   const step = useCallback(
     (delta: number) => {
@@ -65,13 +98,13 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') dismiss()
       else if (event.key === 'ArrowLeft') step(-1)
       else if (event.key === 'ArrowRight') step(1)
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose, step])
+  }, [dismiss, step])
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (busy.current) return
@@ -123,9 +156,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
     if (axis.current === 'y') {
       const my = endY - start.current.y
       if (my > DISMISS_Y) {
-        setAnimate(true)
-        setDy(window.innerHeight)
-        window.setTimeout(onClose, FLY_MS)
+        dismiss()
       } else {
         setAnimate(true)
         setDy(0)
@@ -143,7 +174,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
       endX <= image.right &&
       endY >= image.top &&
       endY <= image.bottom
-    if (!inside) onClose()
+    if (!inside) dismiss()
   }
 
   if (!photo) return null
@@ -154,8 +185,8 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
     <div className="photo-viewer" role="dialog" aria-modal="true" aria-label="查看照片">
       <div
         className="photo-viewer-backdrop"
-        style={{ opacity: Math.max(0.25, 1 - dy / 420) }}
-        onClick={onClose}
+        style={{ opacity: closing ? 0 : Math.max(0.25, 1 - dy / 420) }}
+        onClick={dismiss}
       />
 
       <div
@@ -169,12 +200,16 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
           className="photo-viewer-track"
           ref={trackRef}
           style={{
-            transform: `translate3d(calc(-33.3333% + ${dx}px), ${dy}px, 0) scale(${Math.max(
-              0.86,
-              1 - Math.abs(dy) / 1800,
-            )})`,
-            transition: animate ? `transform ${FLY_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1)` : 'none',
-            opacity: Math.max(0, 1 - Math.abs(dy) / 620),
+            transform: closing
+              ? `translate3d(calc(-33.3333% + ${closing.x}px), ${closing.y}px, 0) scale(${closing.scale})`
+              : `translate3d(calc(-33.3333% + ${dx}px), ${dy}px, 0) scale(${Math.max(
+                  0.86,
+                  1 - Math.abs(dy) / 1800,
+                )})`,
+            transition: animate
+              ? `transform ${closing ? 260 : FLY_MS}ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 260ms var(--ease)`
+              : 'none',
+            opacity: closing ? 0 : Math.max(0, 1 - Math.abs(dy) / 620),
           }}
         >
           {slides.map((slideIndex) =>
@@ -189,7 +224,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose }: PhotoView
         </div>
       </div>
 
-      <CloseButton onClick={onClose} />
+      <CloseButton onClick={dismiss} />
 
       {photos.length > 1 ? (
         <div className="photo-viewer-counter">

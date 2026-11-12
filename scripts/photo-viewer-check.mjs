@@ -139,14 +139,16 @@ await touch('touchEnd', [])
 await sleep(500)
 console.log('松手后:', JSON.stringify(await viewer()))
 
-// 点空白关闭
+// 点空白关闭（并观察缩小动画）
 await evaluate(`(() => {
   const ev = new PointerEvent('pointerdown', { clientX: 20, clientY: 120, bubbles: true })
   document.querySelector('.photo-viewer-stage').dispatchEvent(ev)
   const up = new PointerEvent('pointerup', { clientX: 20, clientY: 120, bubbles: true })
   document.querySelector('.photo-viewer-stage').dispatchEvent(up)
 })()`)
-await sleep(500)
+await sleep(110)
+console.log('关闭动画中:', JSON.stringify(await viewer()))
+await sleep(450)
 console.log('点空白后:', JSON.stringify(await viewer()))
 
 // 重新打开 → 向下拖关闭
