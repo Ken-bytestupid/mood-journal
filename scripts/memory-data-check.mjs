@@ -129,7 +129,7 @@ console.log('关闭阅读器后行数:', await evaluate(`document.querySelectorA
 console.log('按天分组的标题:', JSON.stringify(await evaluate(`[...document.querySelectorAll('.memory-list .day-head')].map((n) => n.innerText.replace(/\\n/g, ' '))`)))
 
 // 回到圆环 → 回月份 → 转到一个没有记录的月份
-await evaluate(`[...document.querySelectorAll('.memory-back')].find((b) => b.textContent.includes('回到圆环')).click()`)
+await evaluate(`[...document.querySelectorAll('.memory-back')].find((b) => b.textContent.includes('返回')).click()`)
 await sleep(1400)
 await evaluate(`[...document.querySelectorAll('.memory-back')].find((b) => b.textContent.includes('换个月份')).click()`)
 await sleep(1400)
