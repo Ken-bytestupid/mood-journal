@@ -1212,9 +1212,8 @@ button {
   -webkit-user-select: none;
 }
 
-/* 打开原尺寸查看器时，只把缩略图藏起来：详情本身留着，关闭动画一结束缩略图就出现，
-   看起来像照片缩小后被放回原位 */
-.reader-root[data-photo-open='true'] .reader-photos {
+/* 预览打开时只藏起「当前这张」的缩略图，其它照片照常显示 */
+.reader-photo[data-hidden='true'] {
   visibility: hidden;
 }
 

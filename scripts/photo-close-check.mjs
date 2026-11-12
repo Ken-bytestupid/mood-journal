@@ -49,7 +49,7 @@ const state = () =>
     return {
       viewer: !!document.querySelector('.photo-viewer'),
       详情标题: vis('.reader-title'),
-      缩略图: vis('.reader-photos'),
+      缩略图: [...document.querySelectorAll('.reader-photo')].map((el) => getComputedStyle(el).visibility),
       缩略图张数: document.querySelectorAll('.reader-photo').length,
     }
   })()`)

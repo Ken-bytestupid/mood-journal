@@ -27,6 +27,8 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
   const [offset, setOffset] = useState(0)
   const [animate, setAnimate] = useState(true)
   const [photoIndex, setPhotoIndex] = useState<number | null>(null)
+  /** 预览还开着时先藏起「当前这张」的缩略图，关闭动画快结束时再放出来 */
+  const [thumbRevealed, setThumbRevealed] = useState(false)
   const [photoOrigin, setPhotoOrigin] = useState<{ left: number; top: number; width: number; height: number } | null>(
     null,
   )
@@ -127,11 +129,13 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
                   key={index_}
                   type="button"
                   className="reader-photo"
+                  data-hidden={photoIndex === index_ && !thumbRevealed ? 'true' : 'false'}
                   aria-label={`查看第 ${index_ + 1} 张照片的原尺寸`}
                   onClick={(event) => {
                     // 记住缩略图位置，关闭预览时缩回这里
                     const rect = event.currentTarget.getBoundingClientRect()
                     setPhotoOrigin({ left: rect.left, top: rect.top, width: rect.width, height: rect.height })
+                    setThumbRevealed(false)
                     setPhotoIndex(index_)
                   }}
                 >
@@ -159,8 +163,18 @@ export function EntryReader({ entries, index, onIndexChange, onClose, onDelete }
           photos={entry.photos}
           index={photoIndex}
           origin={photoOrigin}
-          onIndexChange={setPhotoIndex}
-          onClose={() => setPhotoIndex(null)}
+          onIndexChange={(next) => {
+            setPhotoIndex(next)
+            setThumbRevealed(false)
+          }}
+          onCloseStart={() => {
+            // 缩小动画还剩约 0.2 秒时就把缩略图放出来，衔接更自然
+            window.setTimeout(() => setThumbRevealed(true), 140)
+          }}
+          onClose={() => {
+            setPhotoIndex(null)
+            setThumbRevealed(false)
+          }}
         />
       ) : null}
     </div>

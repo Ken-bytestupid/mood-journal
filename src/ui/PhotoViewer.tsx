@@ -8,6 +8,8 @@ interface PhotoViewerProps {
   index: number
   onIndexChange: (index: number) => void
   onClose: () => void
+  /** 关闭动画开始（用于把缩略图提前放出来） */
+  onCloseStart?: () => void
   /** 缩略图的位置和尺寸：关闭时缩小回这里 */
   origin?: { left: number; top: number; width: number; height: number } | null
 }
@@ -26,7 +28,14 @@ const SLOP = 8
  * 照片预览：三张并排（上一张 / 当前 / 下一张），左右滑动跟手切换；
  * 点图片外的空白关闭；按住图片向下拖也能关闭（iOS 相册那种）。
  */
-export function PhotoViewer({ photos, index, onIndexChange, onClose, origin }: PhotoViewerProps) {
+export function PhotoViewer({
+  photos,
+  index,
+  onIndexChange,
+  onClose,
+  onCloseStart,
+  origin,
+}: PhotoViewerProps) {
   const [dx, setDx] = useState(0)
   const [dy, setDy] = useState(0)
   const [animate, setAnimate] = useState(true)
@@ -50,6 +59,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, origin }: P
   const dismiss = useCallback(() => {
     if (closingRef.current) return
     closingRef.current = true
+    onCloseStart?.()
     setAnimate(false)
     setDx(0)
     setDy(0)
@@ -70,7 +80,7 @@ export function PhotoViewer({ photos, index, onIndexChange, onClose, origin }: P
       })
       window.setTimeout(onClose, CLOSE_MS)
     })
-  }, [onClose, origin])
+  }, [onClose, onCloseStart, origin])
 
   const step = useCallback(
     (delta: number) => {
