@@ -1326,6 +1326,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  touch-action: none;
   animation: reader-fade 0.18s var(--ease);
 }
 
@@ -1338,27 +1340,39 @@ button {
 }
 
 .photo-viewer-stage {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  touch-action: pan-y pinch-zoom;
+  touch-action: none;
 }
 
-.photo-viewer-frame {
-  max-width: 100%;
-  max-height: 100%;
+/* 三张并排：上一张 / 当前 / 下一张 */
+.photo-viewer-track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  width: 300%;
+  will-change: transform;
+}
+
+.photo-viewer-slide {
+  flex: 0 0 33.3333%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+/* 按草图：等比例缩放，四周留白 */
 .photo-viewer-image {
-  max-width: 100vw;
-  max-height: 100dvh;
+  max-width: 76vw;
+  max-height: 64vh;
+  width: auto;
+  height: auto;
   object-fit: contain;
+  border-radius: var(--radius-12);
+  box-shadow: 0 18px 50px var(--shadow-reader);
 }
 
 /* 所有浮层共用的关闭按钮（阅读器 / 看图 / 记忆） */
