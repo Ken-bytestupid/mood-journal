@@ -340,7 +340,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
             <span>
               {monthName} · 第 {week?.week ?? '—'} 周
             </span>
-            <button type="button" className="memory-back" onClick={backToWeeks} aria-label="返回周环">
+            <button type="button" className="memory-confirm" onClick={backToWeeks} aria-label="返回周环">
               ↩ 返回
             </button>
           </div>
