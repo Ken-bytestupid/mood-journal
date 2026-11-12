@@ -174,14 +174,17 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     void transition(() => setStage('month'))
   }
 
-  /** 点圆环内左右半边 = 上/下一周（保留点击切换的手感） */
+  /**
+   * 点环外左右 = 上/下一周。
+   * 这里用「累计格数」而不是取模后的下标，这样转完最后一周会继续顺着转（49 → 44），
+   * 不会原路倒回来。
+   */
   const stepWeek = useCallback(
     (delta: number) => {
       if (weeks.length === 0) return
-      const next = mod(weekIndex + delta, weeks.length)
-      setWeekSpin(-next * weekStep)
+      setWeekSpin(-(weekSlots + delta) * weekStep)
     },
-    [weekIndex, weekStep, weeks.length],
+    [weekSlots, weekStep, weeks.length],
   )
 
   /** 松手：吸附到最近一格；只点了一下则按「点在环内还是环外」决定行为 */
