@@ -1596,21 +1596,43 @@ button {
   opacity: 0.72;
 }
 
+/* 两个按钮的角色色：浅色模式「实心深色 + 白底」；深色模式反过来。
+   换主题/换模式只改这一组变量，按钮本身复用同一份样式。 */
+.memory {
+  --btn-solid-bg: var(--ink);
+  --btn-solid-fg: var(--bg);
+  --btn-ghost-bg: var(--surface);
+  --btn-ghost-fg: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .memory {
+    --btn-solid-bg: var(--on-scrim-soft);
+    --btn-solid-fg: var(--bg);
+    /* 深色下用比压暗层略亮一档的黑，按钮有实体感又不刺眼 */
+    --btn-ghost-bg: var(--surface-2);
+    --btn-ghost-fg: var(--on-scrim-soft);
+  }
+}
+
+/* 次级按钮（换个月份）：白底填充，浅色模式下字更清楚 */
 .memory-back {
   height: 34px;
   padding: 0 var(--space-14);
-  border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);
+  background: var(--btn-ghost-bg);
+  color: var(--btn-ghost-fg);
   font-size: var(--text-12-5);
-  color: var(--ink-2);
+  font-weight: 500;
 }
 
+/* 主按钮（选这个月 / 看这一周）：实心填充 */
 .memory-confirm {
   height: 40px;
   padding: 0 var(--space-20);
   border-radius: var(--radius-pill);
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--btn-solid-bg);
+  color: var(--btn-solid-fg);
   font-size: var(--text-13-5);
   font-weight: 600;
 }
