@@ -1453,16 +1453,115 @@ button {
 }
 
 /* 年份显示在圆环内部（孔里）；进入周环后不再显示 */
+/* 年份：可点的按钮（点开年份滚轮） */
 .memory-hole-year {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  padding: var(--space-4) var(--space-10);
+  border: 0;
+  border-radius: var(--radius-12);
+  background: transparent;
   font-size: var(--text-19);
   font-weight: 600;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
+}
+
+.memory-hole-year:active {
+  background: var(--surface-2);
+}
+
+/* ============================================================ 年份滚轮 */
+
+.wheel-root {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wheel-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--scrim);
+}
+
+.wheel-panel {
+  position: relative;
+  width: min(240px, 78vw);
+  padding: var(--space-14);
+  background: var(--surface);
+  border-radius: var(--radius-20);
+  box-shadow: 0 24px 60px var(--shadow-reader);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  animation: pop-in 0.18s var(--ease);
+}
+
+/* 中间的高亮带 */
+.wheel-stage {
+  position: relative;
+  height: 220px;
+}
+
+.wheel-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 88px;
+  height: 44px;
+  border-radius: var(--radius-12);
+  background: var(--surface-2);
   pointer-events: none;
+}
+
+.wheel-list {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  padding: 88px 0;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: none;
+}
+
+.wheel-list::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-22);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  scroll-snap-align: center;
+  transition: none;
+}
+
+.wheel-actions {
+  display: flex;
+  gap: var(--space-10);
+}
+
+.wheel-actions > * {
+  flex: 1;
 }
 
 /* 阶段容器固定成月环大小：周环较小也居中，关闭按钮/指针位置不随阶段跳动 */
@@ -1618,8 +1717,8 @@ button {
 }
 
 /* 两个按钮的角色色：浅色模式「实心深色 + 白底」；深色模式反过来。
-   换主题/换模式只改这一组变量，按钮本身复用同一份样式。 */
-.memory {
+   挂在 :root 上，浮层（记忆、年份滚轮）都能继承到。 */
+:root {
   --btn-solid-bg: var(--ink);
   --btn-solid-fg: var(--bg);
   --btn-ghost-bg: var(--on-solid);
@@ -1628,7 +1727,7 @@ button {
 }
 
 @media (prefers-color-scheme: dark) {
-  .memory {
+  :root {
     --btn-solid-bg: var(--on-scrim-soft);
     --btn-solid-fg: var(--bg);
     /* 深色下用半透明白，按钮比压暗层亮一档 */

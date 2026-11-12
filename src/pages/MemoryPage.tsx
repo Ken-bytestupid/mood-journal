@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { dateText, groupByDay, isoWeek, isoWeekKey, weekDayLabel } from '../core/time'
 import type { Entry } from '../core/types'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
@@ -15,6 +16,11 @@ interface MemoryPageProps {
 const MONTH_STEP = 360 / 12
 /** 手指转动多少度，圆盘才转多少度（越小越「钝」，越容易停在想要的格子上） */
 const SENSITIVITY = 0.55
+
+/** 年份滚轮的取值范围与行高 */
+const YEAR_START = 1970
+const YEAR_END = 2100
+const YEAR_ITEM_H = 44
 
 type Stage = 'month' | 'week' | 'list'
 type Phase = 'idle' | 'dragging' | 'busy'
@@ -57,6 +63,10 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const [pendingDelete, setPendingDelete] = useState<Entry | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimer = useRef<number | null>(null)
+  // 年份滚轮
+  const [wheelOpen, setWheelOpen] = useState(false)
+  const [wheelIndex, setWheelIndex] = useState(0)
+  const wheelRef = useRef<HTMLDivElement>(null)
 
   /** 屏幕中央的短提示，1.6 秒后自动消失 */
   const showNotice = useCallback((message: string) => {
@@ -234,8 +244,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   )
 
   /** 点「选这个月」才换场到周环；周环默认停在当前这一周 */
-  const confirmMonth = () => {
-    if (stage !== 'month') return
+  const confirmMonth = () => {    if (stage !== 'month') return
     if (!monthHasRecords) {
       showNotice('这个月没有记录，到有记录的月份看看吧')
       return
@@ -266,7 +275,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (phase === 'busy') return
     // 按钮上的点击交给按钮自己处理，不算空白区点击
-    if ((event.target as Element).closest('button, a, input, textarea')) {
+    if ((event.target as Element).closest('button, a, input, textarea, .wheel-root, .reader-root, .memory-list')) {
       drag.current.active = false
       return
     }
@@ -306,6 +315,31 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
 
   const monthName = `${year} 年 ${monthIndex + 1} 月`
 
+  /** 年份滚轮：打开时定位到当前年 */
+  const openWheel = () => {
+    const index = Math.min(YEAR_END - YEAR_START, Math.max(0, year - YEAR_START))
+    setWheelIndex(index)
+    setWheelOpen(true)
+    window.setTimeout(() => {
+      const el = wheelRef.current
+      if (el) el.scrollTop = index * YEAR_ITEM_H
+    }, 0)
+  }
+
+  const onWheelScroll = () => {
+    const el = wheelRef.current
+    if (!el) return
+    const index = Math.round(el.scrollTop / YEAR_ITEM_H)
+    setWheelIndex(Math.min(YEAR_END - YEAR_START, Math.max(0, index)))
+  }
+
+  /** 选好年份：把圆环拨到「该年 + 当前月份」 */
+  const applyWheel = () => {
+    const target = YEAR_START + wheelIndex
+    setWheelOpen(false)
+    setSpin(-((target - baseYear) * 12 + monthIndex) * MONTH_STEP)
+  }
+
   // 月环与周环共用同一套转盘手势；列表页和详情浮层不接收本层手势
   const rootHandlers =
     readerIndex !== null || stage === 'list'
@@ -340,7 +374,9 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
               })}
             </div>
             <div className="memory-hole" aria-hidden="true" />
-            <span className="memory-hole-year">{year}</span>
+            <button type="button" className="memory-hole-year" onClick={openWheel} aria-label="选择年份">
+              {year}
+            </button>
           </div>
         ) : (
           <div className="memory-ring small" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
@@ -474,6 +510,54 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
           {notice}
         </div>
       ) : null}
+
+      {wheelOpen
+        ? createPortal(
+            <div className="wheel-root" role="dialog" aria-modal="true" aria-label="选择年份">
+              <button
+                type="button"
+                className="wheel-backdrop"
+                aria-label="取消"
+                onClick={() => setWheelOpen(false)}
+              />
+              <div className="wheel-panel">
+                <div className="wheel-stage">
+                  <div className="wheel-band" aria-hidden="true" />
+                  <div className="wheel-list" ref={wheelRef} onScroll={onWheelScroll}>
+                    {Array.from({ length: YEAR_END - YEAR_START + 1 }, (_, index) => {
+                      const value = YEAR_START + index
+                      const distance = Math.abs(index - wheelIndex)
+                      return (
+                        <button
+                          type="button"
+                          key={value}
+                          className="wheel-item"
+                          data-active={distance === 0 ? 'true' : 'false'}
+                          style={{ opacity: Math.max(0.18, 1 - distance * 0.32) }}
+                          onClick={() => {
+                            setWheelIndex(index)
+                            wheelRef.current?.scrollTo({ top: index * YEAR_ITEM_H, behavior: 'smooth' })
+                          }}
+                        >
+                          {value} 年
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div className="wheel-actions">
+                  <button type="button" className="memory-back" onClick={() => setWheelOpen(false)}>
+                    取消
+                  </button>
+                  <button type="button" className="memory-confirm" onClick={applyWheel}>
+                    {YEAR_START + wheelIndex} 年
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {readerIndex !== null && weekEntries[readerIndex] ? (
         <EntryReader
