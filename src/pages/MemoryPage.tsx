@@ -263,8 +263,6 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     >
       <CloseButton onClick={onClose} />
 
-      <div className="memory-year">{year}</div>
-
       <div className="memory-stage" hidden={stage === 'list'}>
         <div className="memory-pointer" aria-hidden="true" />
         {stage === 'month' ? (
@@ -288,6 +286,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
               })}
             </div>
             <div className="memory-hole" aria-hidden="true" />
+            <span className="memory-hole-year">{year}</span>
           </div>
         ) : (
           <div className="memory-ring small" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
@@ -376,7 +375,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
             ) : (
               <>
                 <strong>
-                  {monthName} · 第 {week?.week ?? '—'} 周
+                  {year} 年 · 第 {week?.week ?? '—'} 周
                 </strong>
                 <span>{demoMode ? '演示模式：全部可选' : `${week ? (byWeek.get(week.key) ?? 0) : 0} 条记录`}</span>
               </>

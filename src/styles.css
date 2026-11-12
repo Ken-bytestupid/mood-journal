@@ -1451,15 +1451,17 @@ button {
   overflow: hidden;
 }
 
-.memory-year {
+/* 年份显示在圆环内部（孔里）；进入周环后不再显示 */
+.memory-hole-year {
   position: absolute;
-  left: var(--space-14);
+  left: 50%;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   font-size: var(--text-19);
   font-weight: 600;
-  color: var(--ink-2);
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
 .memory-stage {
@@ -1474,10 +1476,6 @@ button {
 }
 
 /* 列表阶段不需要左侧年份，避免和卡片打架 */
-.memory[data-stage='list'] .memory-year {
-  display: none;
-}
-
 /* 顶部指针：向下的三角 */
 .memory-pointer {
   position: absolute;

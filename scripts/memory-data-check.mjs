@@ -47,10 +47,27 @@ await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints
 await send('Page.navigate', { url: URL_APP })
 await sleep(2500)
 
+// 先清掉可能残缺的库，让 app 自己建表
+await evaluate(`new Promise((resolve) => {
+  const req = indexedDB.deleteDatabase('mood-journal')
+  req.onsuccess = () => resolve(true)
+  req.onerror = () => resolve(false)
+  req.onblocked = () => resolve(false)
+})`)
+await send('Page.reload')
+await sleep(2200)
+
 // 写入三条今天的记录（同一个月、同一周）
 await evaluate(`(async () => {
   const db = await new Promise((resolve, reject) => {
     const req = indexedDB.open('mood-journal', 1)
+    req.onupgradeneeded = () => {
+      const database = req.result
+      if (!database.objectStoreNames.contains('entries')) {
+        const store = database.createObjectStore('entries', { keyPath: 'id' })
+        store.createIndex('createdAt', 'createdAt', { unique: false })
+      }
+    }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
   })
@@ -85,6 +102,7 @@ await shot('mem-current')
 await evaluate(`document.querySelector('.memory-confirm').click()`)
 await sleep(1500)
 console.log('周环:', await evaluate(`document.querySelector('.memory-caption')?.innerText.replace(/\\n/g, ' / ')`))
+await shot('mem-week')
 
 await evaluate(`document.querySelector('.memory-confirm').click()`)
 await sleep(1500)
