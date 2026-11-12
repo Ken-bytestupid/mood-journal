@@ -1506,6 +1506,13 @@ button {
   background: var(--scrim);
 }
 
+/* 定位锚点：让高亮带压在圆环中心的年份上 */
+.wheel-anchor {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .wheel-panel {
   position: relative;
   width: min(240px, 78vw);

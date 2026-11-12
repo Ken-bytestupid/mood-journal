@@ -22,8 +22,10 @@ const YEAR_START = 1970
 const YEAR_END = 2100
 const YEAR_ITEM_H = 44
 /** 滚轮字号：中间最大，远离中心逐渐回到基础字号 */
-const WHEEL_BASE_FONT = 20
-const WHEEL_GROW = 6
+const WHEEL_BASE_FONT = 18
+const WHEEL_GROW = 4
+/** 高亮带中心相对面板顶部的距离（用于把带子对准圆环里的年份） */
+const WHEEL_BAND_OFFSET = 14 + 88 + 22
 
 type Stage = 'month' | 'week' | 'list'
 type Phase = 'idle' | 'dragging' | 'busy'
@@ -68,6 +70,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const noticeTimer = useRef<number | null>(null)
   // 年份滚轮
   const [wheelOpen, setWheelOpen] = useState(false)
+  const [wheelTop, setWheelTop] = useState(0)
   /** 当前位置，单位是「行」（浮点）：拖动和归位都用它，渲染按位置连续计算 */
   const [wheelPos, setWheelPos] = useState(0)
   const [wheelDragging, setWheelDragging] = useState(false)
@@ -383,6 +386,10 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const openWheel = () => {
     stopWheelAnim()
     setWheelPosition(year - YEAR_START)
+    // 让高亮带正好压在圆环中心的年份上
+    const rect = rootRef.current?.querySelector('.memory-ring')?.getBoundingClientRect()
+    const ringCenterY = rect ? rect.top + rect.height / 2 : window.innerHeight / 2
+    setWheelTop(Math.max(8, Math.round(ringCenterY - WHEEL_BAND_OFFSET)))
     setWheelOpen(true)
   }
 
@@ -596,7 +603,8 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
                 aria-label="取消"
                 onClick={() => setWheelOpen(false)}
               />
-              <div className="wheel-panel">
+              <div className="wheel-anchor" style={{ top: wheelTop }}>
+                <div className="wheel-panel">
                 <div
                   className="wheel-stage"
                   data-dragging={wheelDragging ? 'true' : 'false'}
@@ -638,6 +646,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
                   <button type="button" className="memory-confirm" onClick={applyWheel}>
                     {wheelYear} 年
                   </button>
+                </div>
                 </div>
               </div>
             </div>,
