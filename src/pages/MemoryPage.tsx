@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { CloseButton } from '../ui/CloseButton'
 import { EntryReader } from '../ui/EntryReader'
 import { EntryRow } from '../ui/EntryRow'
+import { RingSectors } from '../ui/RingSectors'
 
 interface MemoryPageProps {
   entries: Entry[]
@@ -446,6 +447,20 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
         {stage === 'month' ? (
           <div className="memory-ring" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
             <div className="memory-ring-track" style={{ transform: `rotate(${spin}deg)` }}>
+              <RingSectors
+                count={12}
+                size={268}
+                innerRadius={76}
+                outerRadius={132}
+                position={-spin / MONTH_STEP}
+                fillOf={(index) =>
+                  index === monthIndex
+                    ? 'var(--ring-selected)'
+                    : monthEnabled(index)
+                      ? 'var(--ring-with)'
+                      : 'var(--ring-empty)'
+                }
+              />
               {Array.from({ length: 12 }, (_, index) => {
                 // 数字按草图顺时针排（1 在顶、2 在右上）；文字再反向转回来保持正立
                 const a = index * MONTH_STEP
@@ -456,14 +471,16 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
                     className="memory-item"
                     data-active={index === monthIndex ? 'true' : 'false'}
                     data-disabled={monthEnabled(index) ? 'false' : 'true'}
-                    style={{ transform: `rotate(${a}deg) translateY(-118px) rotate(${upright}deg)` }}
+                    data-state={
+                      index === monthIndex ? 'selected' : monthEnabled(index) ? 'with' : 'empty'
+                    }
+                    style={{ transform: `rotate(${a}deg) translateY(-104px) rotate(${upright}deg)` }}
                   >
                     {index + 1}
                   </span>
                 )
               })}
             </div>
-            <div className="memory-hole" aria-hidden="true" />
             <button type="button" key={year} className="memory-hole-year" onClick={openWheel} aria-label="选择年份">
               {year}
             </button>
@@ -471,6 +488,20 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
         ) : (
           <div className="memory-ring small" data-fade={fade} data-dragging={phase === 'dragging' ? 'true' : 'false'}>
             <div className="memory-ring-track" style={{ transform: `rotate(${weekSpin}deg)` }}>
+              <RingSectors
+                count={Math.max(weeks.length, 1)}
+                size={200}
+                innerRadius={56}
+                outerRadius={98}
+                position={weeks.length ? -weekSpin / weekStep : 0}
+                fillOf={(index) =>
+                  index === weekIndex
+                    ? 'var(--ring-selected)'
+                    : weeks[index]?.enabled
+                      ? 'var(--ring-with)'
+                      : 'var(--ring-empty)'
+                }
+              />
               {weeks.map((item, index) => {
                 const a = index * weekStep
                 const upright = -(weekSpin + a)
@@ -480,14 +511,14 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
                     className="memory-item"
                     data-active={index === weekIndex ? 'true' : 'false'}
                     data-disabled={item.enabled ? 'false' : 'true'}
-                    style={{ transform: `rotate(${a}deg) translateY(-80px) rotate(${upright}deg)` }}
+                    data-state={index === weekIndex ? 'selected' : item.enabled ? 'with' : 'empty'}
+                    style={{ transform: `rotate(${a}deg) translateY(-78px) rotate(${upright}deg)` }}
                   >
                     {item.week}
                   </span>
                 )
               })}
             </div>
-            <div className="memory-hole" aria-hidden="true" />
           </div>
         )}
 

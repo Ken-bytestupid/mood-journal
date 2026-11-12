@@ -1475,6 +1475,27 @@ button {
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
+
+  /* 圆环扇形块的配色：选中 / 有记录 / 无记录（用实色，避免透出背景造成深浅不一） */
+  --ring-selected: #f4f1ea;
+  --ring-with: #cbc7c0;
+  --ring-empty: #5d5a55;
+  --ring-line: rgba(255, 255, 255, 0.5);
+  --ring-label-selected: var(--ink);
+  --ring-label-with: var(--ink);
+  --ring-label-empty: var(--on-scrim-soft);
+}
+
+@media (prefers-color-scheme: dark) {
+  .memory {
+    --ring-selected: #b3b0aa;
+    --ring-with: #45413d;
+    --ring-empty: #262320;
+    --ring-line: rgba(255, 255, 255, 0.22);
+    --ring-label-selected: #141311;
+    --ring-label-with: var(--on-scrim-soft);
+    --ring-label-empty: rgba(244, 241, 234, 0.62);
+  }
 }
 
 /* 年份显示在圆环内部（孔里）；进入周环后不再显示 */
@@ -1650,8 +1671,6 @@ button {
   position: relative;
   width: 268px;
   height: 268px;
-  border: 1px solid rgba(33, 30, 26, 0.3);
-  border-radius: 50%;
   transition:
     filter 260ms var(--ease),
     opacity 260ms var(--ease),
@@ -1698,36 +1717,48 @@ button {
   align-items: center;
   justify-content: center;
   font-size: var(--text-15);
-  color: var(--ink-2);
+  color: var(--ring-label-with);
   font-variant-numeric: tabular-nums;
   border-radius: 50%;
-  transition:
-    color 160ms var(--ease),
-    background-color 160ms var(--ease);
+  transition: color 160ms var(--ease);
 }
 
-.memory-item[data-disabled='true'] {
-  color: var(--ink-2);
-  opacity: 0.55;
-}
-
-.memory-item[data-active='true'] {
-  color: var(--ink);
+/* 文字颜色跟着所在扇形块的明暗走 */
+.memory-item[data-state='selected'] {
+  color: var(--ring-label-selected);
   font-weight: 600;
-  background: var(--surface);
-  box-shadow: 0 1px 6px rgba(20, 16, 12, 0.16);
+}
+
+.memory-item[data-state='with'] {
+  color: var(--ring-label-with);
+}
+
+.memory-item[data-state='empty'] {
+  color: var(--ring-label-empty);
+  opacity: 0.85;
+}
+
+/* 圆环上的扇形块 */
+.memory-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.memory-sector {
+  stroke: var(--ring-line);
+  stroke-width: 1;
+  transition: transform 220ms var(--ease);
+}
+
+.memory-ring[data-dragging='true'] .memory-sector {
+  transition: none;
 }
 
 .memory-hole {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 46%;
-  height: 46%;
-  transform: translate(-50%, -50%);
-  border: 1px solid rgba(33, 30, 26, 0.16);
-  border-radius: 50%;
-  background: transparent;
+  display: none;
 }
 
 /* 落在压暗的背景上，用奶白色字保证对比（不另加底板） */
