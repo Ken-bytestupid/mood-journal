@@ -130,20 +130,23 @@ await sleep(900)
 await evaluate(`document.querySelector('.memory-confirm').click()`)
 await sleep(1600)
 console.log('周环:', JSON.stringify(await state()))
-await tap(24, 210)
-await sleep(600)
-console.log('点周环外空白（期望保持周环）:', JSON.stringify(await state()))
 
-// 确保在周环 → 点环内右侧 → 下一周
-if ((await state()).stage !== 'week') {
-  await evaluate(`document.querySelector('.memory-confirm').click()`)
-  await sleep(1600)
-}
+// 点环外右侧 → 下一周
 const before = (await state()).week
-const ringBox = await evaluate(`(() => { const r = document.querySelector('.memory-ring.small').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height } })()`)
-await tap(Math.round(ringBox.x + ringBox.w * 0.78), Math.round(ringBox.y + ringBox.h * 0.5))
-console.log('点环内右侧（期望下一周）:', before, '→', (await state()).week)
+await tap(340, 720)
+console.log('点环外右侧（期望下一周）:', before, '→', (await state()).week)
 await shot('mem-tap-week')
+
+// 点环外左侧 → 上一周
+const beforePrev = (await state()).week
+await tap(50, 720)
+console.log('点环外左侧（期望上一周）:', beforePrev, '→', (await state()).week)
+
+// 点环内 → 不变
+const beforeInside = (await state()).week
+const ringBox = await evaluate(`(() => { const r = document.querySelector('.memory-ring.small').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height } })()`)
+await tap(Math.round(ringBox.x + ringBox.w * 0.7), Math.round(ringBox.y + ringBox.h * 0.5))
+console.log('点环内（期望不变）:', beforeInside, '→', (await state()).week)
 
 // 用「换个月份」回到月环，再进周环（停在当前周 46），进列表
 if ((await state()).stage === 'week') {

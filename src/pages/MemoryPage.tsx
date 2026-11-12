@@ -211,14 +211,18 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
       const radius = rect ? rect.width / 2 : 0
       const outside = Math.hypot(x - cx, y - cy) > radius + 12
 
-      // 点环外空白：月环回「我的」；周环不做处理（用「换个月份」回退）
+      // 点环外空白：月环回「我的」；周环按左右三分区翻周（环内点击不触发）
       if (outside) {
-        if (stage === 'month') onClose()
-        return
+        if (stage === 'month') {
+          onClose()
+          return
+        }
+        if (stage === 'week') {
+          const third = window.innerWidth / 3
+          if (x < third) stepWeek(-1)
+          else if (x > third * 2) stepWeek(1)
+        }
       }
-
-      // 点环内左右半边：上/下一周
-      if (stage === 'week') stepWeek(x < cx ? -1 : 1)
     },
     [goBack, monthSlots, onClose, stage, stepWeek, weekSlots, weekStep],
   )
