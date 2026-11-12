@@ -1506,10 +1506,12 @@ button {
   animation: pop-in 0.18s var(--ease);
 }
 
-/* 中间的高亮带 */
+/* 中间的高亮带；stage 只露 5 行 */
 .wheel-stage {
   position: relative;
   height: 220px;
+  overflow: hidden;
+  touch-action: none;
 }
 
 .wheel-band {
@@ -1523,26 +1525,14 @@ button {
   pointer-events: none;
 }
 
-.wheel-list {
-  position: relative;
-  height: 100%;
-  overflow-y: auto;
-  padding: 88px 0;
-  scroll-snap-type: y mandatory;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  scrollbar-width: none;
-}
-
-.wheel-list::-webkit-scrollbar {
-  display: none;
-}
-
 .wheel-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 88px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
   height: 44px;
   padding: 0;
   border: 0;
@@ -1551,8 +1541,6 @@ button {
   font-size: var(--text-22);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  scroll-snap-align: center;
-  transition: none;
 }
 
 .wheel-actions {

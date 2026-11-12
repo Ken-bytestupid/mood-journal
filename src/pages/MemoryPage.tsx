@@ -66,7 +66,9 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   // 年份滚轮
   const [wheelOpen, setWheelOpen] = useState(false)
   const [wheelIndex, setWheelIndex] = useState(0)
-  const wheelRef = useRef<HTMLDivElement>(null)
+  const [wheelOffset, setWheelOffset] = useState(0)
+  const [wheelDragging, setWheelDragging] = useState(false)
+  const wheelStartY = useRef(0)
 
   /** 屏幕中央的短提示，1.6 秒后自动消失 */
   const showNotice = useCallback((message: string) => {
@@ -315,22 +317,36 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
 
   const monthName = `${year} 年 ${monthIndex + 1} 月`
 
-  /** 年份滚轮：打开时定位到当前年 */
+  /** 年份滚轮：固定显示 5 行（当前 ±2），靠拖拽换年 */
+  const clampYearIndex = (value: number) =>
+    Math.min(YEAR_END - YEAR_START, Math.max(0, value))
+
   const openWheel = () => {
-    const index = Math.min(YEAR_END - YEAR_START, Math.max(0, year - YEAR_START))
-    setWheelIndex(index)
+    setWheelIndex(clampYearIndex(year - YEAR_START))
+    setWheelOffset(0)
     setWheelOpen(true)
-    window.setTimeout(() => {
-      const el = wheelRef.current
-      if (el) el.scrollTop = index * YEAR_ITEM_H
-    }, 0)
   }
 
-  const onWheelScroll = () => {
-    const el = wheelRef.current
-    if (!el) return
-    const index = Math.round(el.scrollTop / YEAR_ITEM_H)
-    setWheelIndex(Math.min(YEAR_END - YEAR_START, Math.max(0, index)))
+  const onWheelDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.stopPropagation()
+    wheelStartY.current = event.clientY
+    setWheelDragging(true)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  const onWheelMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!wheelDragging) return
+    event.stopPropagation()
+    const dy = event.clientY - wheelStartY.current
+    setWheelOffset(Math.max(-YEAR_ITEM_H * 3, Math.min(YEAR_ITEM_H * 3, dy)))
+  }
+
+  const onWheelUp = () => {
+    if (!wheelDragging) return
+    setWheelDragging(false)
+    const moved = Math.round(-wheelOffset / YEAR_ITEM_H)
+    setWheelIndex((current) => clampYearIndex(current + moved))
+    setWheelOffset(0)
   }
 
   /** 选好年份：把圆环拨到「该年 + 当前月份」 */
@@ -521,29 +537,41 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
                 onClick={() => setWheelOpen(false)}
               />
               <div className="wheel-panel">
-                <div className="wheel-stage">
+                <div
+                  className="wheel-stage"
+                  onPointerDown={onWheelDown}
+                  onPointerMove={onWheelMove}
+                  onPointerUp={onWheelUp}
+                  onPointerCancel={onWheelUp}
+                >
                   <div className="wheel-band" aria-hidden="true" />
-                  <div className="wheel-list" ref={wheelRef} onScroll={onWheelScroll}>
-                    {Array.from({ length: YEAR_END - YEAR_START + 1 }, (_, index) => {
-                      const value = YEAR_START + index
-                      const distance = Math.abs(index - wheelIndex)
-                      return (
-                        <button
-                          type="button"
-                          key={value}
-                          className="wheel-item"
-                          data-active={distance === 0 ? 'true' : 'false'}
-                          style={{ opacity: Math.max(0.18, 1 - distance * 0.32) }}
-                          onClick={() => {
-                            setWheelIndex(index)
-                            wheelRef.current?.scrollTo({ top: index * YEAR_ITEM_H, behavior: 'smooth' })
-                          }}
-                        >
-                          {value} 年
-                        </button>
-                      )
-                    })}
-                  </div>
+                  {[-3, -2, -1, 0, 1, 2, 3].map((delta) => {
+                    const index = wheelIndex + delta
+                    if (index < 0 || index > YEAR_END - YEAR_START) return null
+                    const value = YEAR_START + index
+                    // 跟随手指的位移；静止时按行距排布，正好露出中间 5 行
+                    const shift = delta * YEAR_ITEM_H + wheelOffset
+                    const distance = Math.abs(shift) / YEAR_ITEM_H
+                    return (
+                      <button
+                        type="button"
+                        key={value}
+                        className="wheel-item"
+                        data-active={delta === 0 ? 'true' : 'false'}
+                        style={{
+                          transform: `translateY(${shift}px)`,
+                          opacity: Math.max(0.15, 1 - distance * 0.3),
+                          transition: wheelDragging ? 'none' : 'transform 240ms var(--ease), opacity 240ms var(--ease)',
+                        }}
+                        onClick={() => {
+                          setWheelIndex(clampYearIndex(index))
+                          setWheelOffset(0)
+                        }}
+                      >
+                        {value} 年
+                      </button>
+                    )
+                  })}
                 </div>
                 <div className="wheel-actions">
                   <button type="button" className="memory-back" onClick={() => setWheelOpen(false)}>

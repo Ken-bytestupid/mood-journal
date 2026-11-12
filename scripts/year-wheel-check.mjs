@@ -1,4 +1,4 @@
-// 年份滚轮自检：点年份打开、滚动选中、确认后圆环跳到该年
+// 年份滚轮自检（每次显示 5 行版）：打开、拖动换年、点击行、确认
 import { writeFileSync } from 'node:fs'
 
 const PORT = Number(process.argv[2] ?? 9229)
@@ -35,10 +35,24 @@ const evaluate = async (expression) => {
   if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails))
   return r.result.value
 }
+const touch = (type, points) => send('Input.dispatchTouchEvent', { type, touchPoints: points })
+const point = (x, y) => ({ x, y, radiusX: 6, radiusY: 6, force: 1, id: 1 })
 const shot = async (name) => {
   const { data } = await send('Page.captureScreenshot', { format: 'png' })
   writeFileSync(`${OUT}/${name}.png`, Buffer.from(data, 'base64'))
 }
+const wheelState = () =>
+  evaluate(`(() => {
+    const stage = document.querySelector('.wheel-stage')
+    if (!stage) return { open: false }
+    const box = stage.getBoundingClientRect()
+    const rows = [...stage.querySelectorAll('.wheel-item')].map((el) => {
+      const r = el.getBoundingClientRect()
+      return { text: el.textContent.trim(), visible: r.bottom > box.top && r.top < box.bottom }
+    })
+    const confirm = document.querySelector('.wheel-root .memory-confirm')?.textContent?.trim()
+    return { open: true, rows, visibleCount: rows.filter((r) => r.visible).length, confirm }
+  })()`)
 
 await send('Page.enable')
 await send('Runtime.enable')
@@ -54,41 +68,42 @@ await evaluate(`document.querySelectorAll('.tab')[1].click()`)
 await sleep(600)
 await evaluate(`[...document.querySelectorAll('.tile')].find((b) => b.textContent.includes('记忆')).click()`)
 await sleep(900)
-
-console.log('月份环标题:', await evaluate(`document.querySelector('.memory-caption')?.innerText.replace(/\\n/g, ' / ')`))
-
-// 点年份打开滚轮
 await evaluate(`document.querySelector('.memory-hole-year').click()`)
-await sleep(500)
-console.log('滚轮打开:', await evaluate(`(() => {
-  const root = document.querySelector('.wheel-root')
-  if (!root) return { open: false }
-  const active = [...root.querySelectorAll('.wheel-item')].find((b) => b.dataset.active === 'true')
-  return { open: true, active: active?.textContent, count: root.querySelectorAll('.wheel-item').length }
-})()`))
+await sleep(400)
+console.log('打开滚轮:', JSON.stringify(await wheelState()))
 await shot('year-wheel')
 
-// 滚到 2030
+// 拖拽：向上拖 44px（下一岁）
+const box = await evaluate(`(() => { const r = document.querySelector('.wheel-stage').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 } })()`)
+await touch('touchStart', [point(box.x, box.y)])
+for (let i = 1; i <= 8; i += 1) {
+  await touch('touchMove', [point(box.x, box.y - (44 * i) / 8)])
+  await sleep(16)
+}
+await sleep(100)
+await touch('touchEnd', [])
+await sleep(500)
+console.log('上拖 44px 后:', JSON.stringify(await wheelState()))
+
+// 点高亮行下面第二个（+2 岁）
 await evaluate(`(() => {
-  const list = document.querySelector('.wheel-list')
-  list.scrollTop = (2030 - 1970) * 44
-  list.dispatchEvent(new Event('scroll', { bubbles: true }))
+  const stage = document.querySelector('.wheel-stage')
+  const rows = [...stage.querySelectorAll('.wheel-item')]
+  const active = rows.find((r) => r.dataset.active === 'true')
+  const idx = rows.indexOf(active)
+  rows[idx + 2]?.click()
 })()`)
 await sleep(400)
-console.log('滚到 2030:', await evaluate(`(() => {
-  const active = [...document.querySelectorAll('.wheel-item')].find((b) => b.dataset.active === 'true')
-  return { active: active?.textContent, confirm: document.querySelector('.wheel-root .memory-confirm')?.textContent }
-})()`))
-await shot('year-wheel-2030')
+console.log('点 +2 行:', JSON.stringify(await wheelState()))
 
 // 确认
 await evaluate(`document.querySelector('.wheel-root .memory-confirm').click()`)
 await sleep(900)
-console.log('确认后:', await evaluate(`(() => ({
+console.log('确认后:', JSON.stringify(await evaluate(`({
   wheelOpen: !!document.querySelector('.wheel-root'),
   caption: document.querySelector('.memory-caption')?.innerText.replace(/\\n/g, ' / '),
   yearInRing: document.querySelector('.memory-hole-year')?.textContent,
-}))()`))
+})`)))
 await shot('year-applied')
 
 ws.close()
