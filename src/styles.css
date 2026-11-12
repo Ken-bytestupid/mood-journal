@@ -55,6 +55,7 @@
   --text-20: 20px;
   --text-21: 21px;
   --text-22: 22px;
+  --text-30: 30px;
 
   /* 圆角 */
   --radius-8: 8px;
@@ -1514,13 +1515,13 @@ button {
   touch-action: none;
 }
 
+/* 高亮带铺满整张卡片宽度，像参考里那样横贯一条 */
 .wheel-band {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: calc(var(--space-14) * -1);
+  right: calc(var(--space-14) * -1);
   top: 88px;
   height: 44px;
-  border-radius: var(--radius-12);
   background: var(--surface-2);
   pointer-events: none;
 }
@@ -1537,10 +1538,26 @@ button {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--ink);
+  color: var(--muted);
   font-size: var(--text-22);
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
+  transition:
+    transform 240ms var(--ease),
+    opacity 240ms var(--ease),
+    font-size 180ms var(--ease),
+    color 180ms var(--ease);
+}
+
+/* 选中的那一行更大更实，邻居变灰 */
+.wheel-item[data-active='true'] {
+  color: var(--ink);
+  font-size: var(--text-30);
+  font-weight: 600;
+}
+
+.wheel-stage[data-dragging='true'] .wheel-item {
+  transition: none;
 }
 
 .wheel-actions {

@@ -69,6 +69,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
   const [wheelOffset, setWheelOffset] = useState(0)
   const [wheelDragging, setWheelDragging] = useState(false)
   const wheelStartY = useRef(0)
+  const wheelTick = useRef(0)
 
   /** 屏幕中央的短提示，1.6 秒后自动消失 */
   const showNotice = useCallback((message: string) => {
@@ -327,9 +328,17 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     setWheelOpen(true)
   }
 
+  /** 每过一年轻震一下（Android 支持；iOS Safari 没有这个 API，会自动跳过） */
+  const vibrateTick = () => {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(8)
+    }
+  }
+
   const onWheelDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.stopPropagation()
     wheelStartY.current = event.clientY
+    wheelTick.current = 0
     setWheelDragging(true)
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
@@ -338,6 +347,11 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     if (!wheelDragging) return
     event.stopPropagation()
     const dy = event.clientY - wheelStartY.current
+    const tick = Math.round(-dy / YEAR_ITEM_H)
+    if (tick !== wheelTick.current) {
+      wheelTick.current = tick
+      vibrateTick()
+    }
     setWheelOffset(Math.max(-YEAR_ITEM_H * 3, Math.min(YEAR_ITEM_H * 3, dy)))
   }
 
@@ -347,6 +361,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
     const moved = Math.round(-wheelOffset / YEAR_ITEM_H)
     setWheelIndex((current) => clampYearIndex(current + moved))
     setWheelOffset(0)
+    wheelTick.current = 0
   }
 
   /** 选好年份：把圆环拨到「该年 + 当前月份」 */
@@ -539,6 +554,7 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
               <div className="wheel-panel">
                 <div
                   className="wheel-stage"
+                  data-dragging={wheelDragging ? 'true' : 'false'}
                   onPointerDown={onWheelDown}
                   onPointerMove={onWheelMove}
                   onPointerUp={onWheelUp}
@@ -560,12 +576,12 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
                         data-active={delta === 0 ? 'true' : 'false'}
                         style={{
                           transform: `translateY(${shift}px)`,
-                          opacity: Math.max(0.15, 1 - distance * 0.3),
-                          transition: wheelDragging ? 'none' : 'transform 240ms var(--ease), opacity 240ms var(--ease)',
+                          opacity: Math.max(0.12, 1 - distance * 0.38),
                         }}
                         onClick={() => {
                           setWheelIndex(clampYearIndex(index))
                           setWheelOffset(0)
+                          vibrateTick()
                         }}
                       >
                         {value} 年
