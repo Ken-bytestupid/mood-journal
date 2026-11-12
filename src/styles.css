@@ -1479,10 +1479,10 @@ button {
   display: none;
 }
 
-/* 记忆页的关闭按钮：顶端与三角形顶端齐平，
-   「×」的中心落在圆环右端点的切线上（即 x = 圆心 + 半径） */
+/* 记忆页的关闭按钮：「×」的中心落在圆环右端点的切线上（x = 圆心 + 半径），
+   并且「×」的中心与三角形顶端齐平 */
 .overlay-close.memory-close {
-  top: -26px;
+  top: -43px;
   right: auto;
   left: calc(50% + 117px);
 }

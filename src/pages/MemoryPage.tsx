@@ -211,10 +211,9 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
       const radius = rect ? rect.width / 2 : 0
       const outside = Math.hypot(x - cx, y - cy) > radius + 12
 
-      // 点环外空白：上一级
+      // 点环外空白：月环回「我的」；周环不做处理（用「换个月份」回退）
       if (outside) {
         if (stage === 'month') onClose()
-        else goBack()
         return
       }
 
