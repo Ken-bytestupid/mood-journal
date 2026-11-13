@@ -249,7 +249,9 @@ export function MemoryPage({ entries, onClose, onDelete }: MemoryPageProps) {
       // 点环外空白：月环回「我的」；周环按左右三分区翻周（环内点击不触发）
       if (outside) {
         if (stage === 'month') {
-          onClose()
+          // 延后一拍再关闭：pointerup 之后紧跟的 click 还会落在本层，
+          // 若立刻卸载，这个 click 会穿透到下面的「我的」页触发按钮
+          window.setTimeout(onClose, 0)
           return
         }
         if (stage === 'week') {
