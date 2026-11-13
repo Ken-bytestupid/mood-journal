@@ -1566,9 +1566,9 @@ button {
   padding: var(--space-14);
   /* 半透明玻璃：能模糊地看到背后的圆环 */
   background: var(--surface);
-  background: color-mix(in srgb, var(--surface) 40%, transparent);
-  -webkit-backdrop-filter: blur(26px) saturate(130%);
-  backdrop-filter: blur(26px) saturate(130%);
+  background: color-mix(in srgb, var(--surface) 34%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  backdrop-filter: blur(14px) saturate(120%);
   border-radius: var(--radius-20);
   box-shadow: 0 24px 60px var(--shadow-reader);
   display: flex;
