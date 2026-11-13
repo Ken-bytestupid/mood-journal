@@ -35,12 +35,17 @@ export function useEntries(): EntriesApi {
       entriesRef.current = list
       setEntries(list)
       setError(null)
-      // 每次主库变动后同步一份纯文字镜像，主库被系统清掉时还能捞回来
-      writeMirror(list)
+      setLoading(false)
+      // 文字镜像是兜底用的，不必卡在启动路径上：等首屏空闲再写
+      const write = () => writeMirror(list)
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(write, { timeout: 2000 })
+      } else {
+        window.setTimeout(write, 200)
+      }
       setBackend(await getBackend())
     } catch (error) {
       setError(messageOf(error))
-    } finally {
       setLoading(false)
     }
   }, [])

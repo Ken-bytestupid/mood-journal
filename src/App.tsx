@@ -12,9 +12,17 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('record')
   const { entries, loading, backend, save, remove, clear, importFrom, restore } = useEntries()
 
-  // 主动申请持久化：能拿到的话，浏览器不会因为「很久没打开」清掉记录
+  // 主动申请持久化：能拿到的话，浏览器不会因为「很久没打开」清掉记录。
+  // 放到首屏空闲时再做，别和渲染抢时间。
   useEffect(() => {
-    void requestPersistence()
+    const run = () => {
+      void requestPersistence()
+    }
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(run, { timeout: 3000 })
+    } else {
+      window.setTimeout(run, 800)
+    }
   }, [])
 
   const handleSave = useCallback((input: EntryInput) => save(input), [save])

@@ -63,8 +63,9 @@ export function MinePage({ entries, loading, backend, onDelete, onClear, onImpor
     { kind: 'delete'; entry: Entry } | { kind: 'clear' } | { kind: 'restore' } | null
   >(null)
 
-  // 存储状态：后端变化或打开「通用」时刷新一次，避免看到旧数字
+  // 存储状态：只在打开「通用」时读一次（避免启动时为它做多余的探测）
   useEffect(() => {
+    if (!generalOpen) return
     let alive = true
     void readStorageStatus(backend).then((next) => {
       if (alive) setStatus(next)
