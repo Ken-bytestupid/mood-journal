@@ -1483,6 +1483,8 @@ button {
   --ring-label-selected: var(--ink);
   --ring-label-with: var(--ink);
   --ring-label-empty: var(--on-scrim-soft);
+  /* 环内年份：浅色模式用奶白，压暗的背景上更好读 */
+  --ring-year: var(--on-scrim-soft);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1493,6 +1495,8 @@ button {
     --ring-label-selected: #141311;
     --ring-label-with: var(--on-scrim-soft);
     --ring-label-empty: rgba(244, 241, 234, 0.62);
+    /* 深色模式保持原来的浅色字 */
+    --ring-year: var(--ink);
   }
 }
 
@@ -1509,7 +1513,7 @@ button {
   background: transparent;
   font-size: var(--text-19);
   font-weight: 600;
-  color: var(--ink);
+  color: var(--ring-year);
   font-variant-numeric: tabular-nums;
   animation: year-pop 240ms var(--ease);
 }
@@ -1560,11 +1564,11 @@ button {
   position: relative;
   width: min(240px, 78vw);
   padding: var(--space-14);
-  /* 半透明 + 背景模糊，底下「我的」页仍可见 */
+  /* 半透明玻璃：能模糊地看到背后的圆环 */
   background: var(--surface);
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
-  -webkit-backdrop-filter: blur(18px) saturate(120%);
-  backdrop-filter: blur(18px) saturate(120%);
+  background: color-mix(in srgb, var(--surface) 46%, transparent);
+  -webkit-backdrop-filter: blur(26px) saturate(130%);
+  backdrop-filter: blur(26px) saturate(130%);
   border-radius: var(--radius-20);
   box-shadow: 0 24px 60px var(--shadow-reader);
   display: flex;
